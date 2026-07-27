@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Station, SurveyRecord } from '../types';
 import { QRCodeSVG } from 'qrcode.react';
-import { Save, Camera, CheckCircle, AlertTriangle, Calendar, Building2, UserCheck, ShieldCheck, Sparkles, Upload } from 'lucide-react';
+import { Save, Camera, CheckCircle, AlertTriangle, Building2, Sparkles, Upload, X, QrCode, Download, Eye } from 'lucide-react';
 
 interface SurveyFormViewProps {
   stations: Station[];
@@ -40,11 +40,26 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
   const [assignedDept, setAssignedDept] = useState('Bộ phận chuyên môn');
   const [executionLog, setExecutionLog] = useState(initialRecord?.noi_dung_thuc_hien || 'Hoàn thành vệ sinh, phát quang và chấm điểm sau');
 
-  // Photo counts matching Image 1
-  const [photoBeforeCount, setPhotoBeforeCount] = useState(3);
-  const [photoAfterCount, setPhotoAfterCount] = useState(4);
+  // REAL PHOTO UPLOAD STATE
+  const [beforePhotos, setBeforePhotos] = useState<string[]>([
+    'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=300&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=300&auto=format&fit=crop&q=80'
+  ]);
+  const [afterPhotos, setAfterPhotos] = useState<string[]>([
+    'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=300&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?w=300&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1581092795360-fd1ca04f0952?w=300&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1581091215367-9b6c00b3035a?w=300&auto=format&fit=crop&q=80'
+  ]);
 
-  // Notifications
+  // File input refs for uploading
+  const beforeFileInputRef = useRef<HTMLInputElement | null>(null);
+  const afterFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Modals state
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Calculate totals
@@ -71,6 +86,45 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
     }
   };
 
+  // Image Upload Handlers
+  const handleBeforeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (reader.result) {
+            setBeforePhotos(prev => [...prev, reader.result as string]);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const handleAfterUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (reader.result) {
+            setAfterPhotos(prev => [...prev, reader.result as string]);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeBeforePhoto = (index: number) => {
+    setBeforePhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeAfterPhoto = (index: number) => {
+    setAfterPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
@@ -91,7 +145,9 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
       s5_sau: s5After,
       noi_dung_kien_nghi: riskContent,
       muc_uu_tien: priority,
-      noi_dung_thuc_hien: executionLog
+      noi_dung_thuc_hien: executionLog,
+      anh_truoc_url: beforePhotos[0] || '',
+      anh_sau_url: afterPhotos[0] || ''
     });
 
     setSavedSuccess(true);
@@ -100,6 +156,24 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-12 animate-in fade-in duration-300">
+      {/* Hidden File Inputs */}
+      <input
+        type="file"
+        ref={beforeFileInputRef}
+        onChange={handleBeforeUpload}
+        accept="image/*"
+        multiple
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={afterFileInputRef}
+        onChange={handleAfterUpload}
+        accept="image/*"
+        multiple
+        className="hidden"
+      />
+
       {/* Form Header matching Image 1 */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -123,7 +197,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
       {savedSuccess && (
         <div className="bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-2xl p-4 flex items-center space-x-3 text-sm font-bold animate-bounce">
           <CheckCircle className="w-5 h-5 text-emerald-600" />
-          <span>Lưu phiếu khảo sát thành công! Dữ liệu đã được cập nhật.</span>
+          <span>Lưu phiếu khảo sát và ảnh minh chứng thành công!</span>
         </div>
       )}
 
@@ -297,7 +371,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
             </div>
           </div>
 
-          {/* Section 3: Nguy cơ/kiến nghị phát hiện matching Image 1 */}
+          {/* Section 3: Nguy cơ/kiến nghị phát hiện & REAL PHOTO UPLOAD matching Image 1 */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-4">
             <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
@@ -324,21 +398,74 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
             <div className="flex flex-wrap gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setPhotoBeforeCount(prev => prev + 1)}
-                className="flex-1 py-3 px-4 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-vnpt-700 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2"
+                onClick={() => beforeFileInputRef.current?.click()}
+                className="flex-1 py-3 px-4 bg-sky-50 hover:bg-sky-100 active:scale-95 border border-sky-200 text-vnpt-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
               >
                 <Camera className="w-4 h-4 text-vnpt-600" />
-                <span>+ Ảnh hiện trạng ({String(photoBeforeCount).padStart(2, '0')})</span>
+                <span>+ Ảnh hiện trạng ({String(beforePhotos.length).padStart(2, '0')})</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => setPhotoAfterCount(prev => prev + 1)}
-                className="flex-1 py-3 px-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2"
+                onClick={() => afterFileInputRef.current?.click()}
+                className="flex-1 py-3 px-4 bg-emerald-50 hover:bg-emerald-100 active:scale-95 border border-emerald-200 text-emerald-800 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
               >
                 <Upload className="w-4 h-4 text-emerald-600" />
-                <span>+ Ảnh sau cải thiện ({String(photoAfterCount).padStart(2, '0')})</span>
+                <span>+ Ảnh sau cải thiện ({String(afterPhotos.length).padStart(2, '0')})</span>
               </button>
+            </div>
+
+            {/* PHOTO THUMBNAILS GALLERY PREVIEW */}
+            <div className="space-y-4 pt-2">
+              {/* Before Photos Gallery */}
+              {beforePhotos.length > 0 && (
+                <div>
+                  <div className="text-xs font-bold text-sky-800 mb-2 flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Ảnh hiện trạng trước khi thực hiện ({beforePhotos.length})</span>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                    {beforePhotos.map((url, idx) => (
+                      <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100">
+                        <img src={url} alt={`Ảnh hiện trạng ${idx + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1">
+                          <button type="button" onClick={() => setPreviewImage(url)} className="p-1 bg-white/80 rounded-full text-slate-800 hover:bg-white">
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button type="button" onClick={() => removeBeforePhoto(idx)} className="p-1 bg-rose-500 rounded-full text-white hover:bg-rose-600">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* After Photos Gallery */}
+              {afterPhotos.length > 0 && (
+                <div>
+                  <div className="text-xs font-bold text-emerald-800 mb-2 flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Ảnh sau khi hoàn thành 5S ({afterPhotos.length})</span>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                    {afterPhotos.map((url, idx) => (
+                      <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100">
+                        <img src={url} alt={`Ảnh sau cải thiện ${idx + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1">
+                          <button type="button" onClick={() => setPreviewImage(url)} className="p-1 bg-white/80 rounded-full text-slate-800 hover:bg-white">
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button type="button" onClick={() => removeAfterPhoto(idx)} className="p-1 bg-rose-500 rounded-full text-white hover:bg-rose-600">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -419,7 +546,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
 
             <div className="flex justify-between items-center text-xs py-1.5 border-b border-slate-100">
               <span className="text-slate-500">Ảnh minh chứng</span>
-              <span className="font-bold text-emerald-600">Đã đủ</span>
+              <span className="font-bold text-emerald-600">Đã đủ ({beforePhotos.length + afterPhotos.length})</span>
             </div>
 
             <div className="flex justify-between items-center text-xs py-1.5">
@@ -428,12 +555,16 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
             </div>
           </div>
 
-          {/* Card 4: Mobile Phone Frame Preview Widget matching Image 1 */}
+          {/* Card 4: Mobile Phone Frame Preview Widget & Interactive QR Modal matching Image 1 */}
           <div className="bg-slate-900 rounded-3xl p-5 text-white shadow-2xl space-y-4 border border-slate-800 relative overflow-hidden">
             {/* Phone Top Notch */}
             <div className="w-24 h-4 bg-slate-800 rounded-b-xl mx-auto -mt-5 mb-2" />
 
-            <div className="bg-white rounded-2xl p-4 text-slate-900 text-center space-y-3">
+            <div
+              onClick={() => setIsQrModalOpen(true)}
+              className="bg-white rounded-2xl p-4 text-slate-900 text-center space-y-3 cursor-pointer hover:scale-[1.02] transition-transform"
+              title="Nhấn để mở xem và tải Mã QR"
+            >
               <div className="font-black text-sm text-vnpt-700 uppercase tracking-wide">
                 NHÀ TRẠM 5S
               </div>
@@ -445,22 +576,96 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
               <div className="flex justify-center py-2">
                 <QRCodeSVG
                   value={`https://5s.tt-ht.vnpt.vn/survey/${selectedStationCode}`}
-                  size={100}
+                  size={110}
                   level="H"
                   includeMargin={true}
                 />
               </div>
+              <div className="text-[10px] text-slate-400 font-medium">Chạm để xem phóng to & tải mã QR</div>
             </div>
 
             <button
               type="button"
-              className="w-full py-3 bg-vnpt-500 hover:bg-vnpt-600 active:scale-95 text-white rounded-2xl font-extrabold text-xs tracking-wider uppercase shadow-lg transition-all"
+              onClick={() => setIsQrModalOpen(true)}
+              className="w-full py-3 bg-vnpt-500 hover:bg-vnpt-600 active:scale-95 text-white rounded-2xl font-extrabold text-xs tracking-wider uppercase shadow-lg transition-all flex items-center justify-center gap-2"
             >
-              CẬP NHẬT TẠI HIỆN TRƯỜNG
+              <QrCode className="w-4 h-4" />
+              <span>CẬP NHẬT TẠI HIỆN TRƯỜNG</span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* FULL-SCREEN IMAGE PREVIEW MODAL */}
+      {previewImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="relative max-w-4xl w-full bg-slate-900 rounded-3xl overflow-hidden p-2 border border-slate-800 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 z-10 p-2 bg-black/60 hover:bg-black text-white rounded-full transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img src={previewImage} alt="Xem ảnh phóng to" className="w-full max-h-[80vh] object-contain rounded-2xl mx-auto" />
+          </div>
+        </div>
+      )}
+
+      {/* INTERACTIVE QR CODE MODAL FOR MOBILE SCANNING & PRINTING */}
+      {isQrModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-5 border border-slate-100 text-center relative">
+            <button
+              type="button"
+              onClick={() => setIsQrModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-slate-100 text-slate-500 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div>
+              <span className="text-xs font-extrabold text-vnpt-700 uppercase tracking-widest">VNPT TRUNG TÂM HẠ TẦNG</span>
+              <h3 className="text-lg font-black text-slate-900 mt-1">MÃ QR HỒ SƠ NHÀ TRẠM</h3>
+              <p className="text-xs text-slate-500 mt-0.5">{selectedStationName} ({selectedStationCode})</p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block mx-auto shadow-inner">
+              <QRCodeSVG
+                value={`https://5s.tt-ht.vnpt.vn/survey/${selectedStationCode}`}
+                size={180}
+                level="H"
+                includeMargin={true}
+              />
+            </div>
+
+            <div className="bg-blue-50 p-3 rounded-xl border border-blue-200 text-xs text-blue-900 font-medium">
+              Dùng camera điện thoại quét mã QR tại nhà trạm để cập nhật điểm số & chụp ảnh minh chứng tại hiện trường.
+            </div>
+
+            <div className="flex space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  beforeFileInputRef.current?.click();
+                  setIsQrModalOpen(false);
+                }}
+                className="flex-1 py-2.5 bg-vnpt-500 hover:bg-vnpt-600 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Chụp ảnh ngay</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsQrModalOpen(false)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 };
