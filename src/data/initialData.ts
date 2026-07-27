@@ -13,7 +13,9 @@ export const INITIAL_ORG_SCORES: OrgScoreSummary[] = [
   { to_ha_tang: 'Vĩnh Yên', scoreBefore: 71, scoreAfter: 89 },
   { to_ha_tang: 'Hòa Bình', scoreBefore: 64, scoreAfter: 84 },
   { to_ha_tang: 'Việt Trì', scoreBefore: 73, scoreAfter: 91 },
-  { to_ha_tang: 'Lương Sơn', scoreBefore: 68, scoreAfter: 87 }
+  { to_ha_tang: 'Lương Sơn', scoreBefore: 68, scoreAfter: 87 },
+  { to_ha_tang: 'Thanh Ba', scoreBefore: 65, scoreAfter: 85 },
+  { to_ha_tang: 'Thanh Sơn', scoreBefore: 62, scoreAfter: 83 }
 ];
 
 export const INITIAL_STATIONS: Station[] = [

@@ -26,6 +26,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [selectedStatus, setSelectedStatus] = useState('Tất cả');
   const [evalPeriod, setEvalPeriod] = useState('02-07/2026');
 
+  // Dynamically extract all unique "Tổ Hạ tầng" from Google Sheets live data & defaults
+  const availableOrgs = useMemo(() => {
+    const orgSet = new Set<string>();
+    const defaults = ['Tổ Hạ tầng Việt Trì', 'Tổ Hạ tầng Phú Thọ', 'Tổ Hạ tầng Vĩnh Yên', 'Tổ Hạ tầng Hòa Bình', 'Tổ Hạ tầng Lương Sơn', 'Tổ Hạ tầng Thanh Ba', 'Tổ Hạ tầng Thanh Sơn'];
+    defaults.forEach(o => orgSet.add(o));
+
+    records.forEach(r => {
+      if (r.to_ha_tang && r.to_ha_tang.trim()) orgSet.add(r.to_ha_tang.trim());
+    });
+    stations.forEach(s => {
+      if (s.to_ha_tang && s.to_ha_tang.trim()) orgSet.add(s.to_ha_tang.trim());
+    });
+
+    return Array.from(orgSet).sort();
+  }, [records, stations]);
+
   // Helper matcher for organization name
   const matchOrg = (orgStr: string, filterOrg: string) => {
     if (!filterOrg || filterOrg === 'Tất cả') return true;
@@ -246,11 +262,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               className="w-full px-3.5 py-2 text-sm font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-vnpt-500 focus:outline-none cursor-pointer"
             >
               <option value="Tất cả">Tất cả Tổ Hạ tầng</option>
-              <option value="Tổ Hạ tầng Việt Trì">Tổ Hạ tầng Việt Trì</option>
-              <option value="Tổ Hạ tầng Phú Thọ">Tổ Hạ tầng Phú Thọ</option>
-              <option value="Tổ Hạ tầng Vĩnh Yên">Tổ Hạ tầng Vĩnh Yên</option>
-              <option value="Tổ Hạ tầng Hòa Bình">Tổ Hạ tầng Hòa Bình</option>
-              <option value="Tổ Hạ tầng Lương Sơn">Tổ Hạ tầng Lương Sơn</option>
+              {availableOrgs.map((orgName) => (
+                <option key={orgName} value={orgName}>
+                  {orgName.startsWith('Tổ Hạ tầng') ? orgName : `Tổ Hạ tầng ${orgName}`}
+                </option>
+              ))}
             </select>
           </div>
 

@@ -29,6 +29,12 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
     XLSX.writeFile(workbook, `Danh_Sach_Ho_So_5S_Nha_Tram_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  const availableOrgs = Array.from(new Set([
+    'Tổ Hạ tầng Việt Trì', 'Tổ Hạ tầng Phú Thọ', 'Tổ Hạ tầng Vĩnh Yên', 'Tổ Hạ tầng Hòa Bình', 'Tổ Hạ tầng Lương Sơn', 'Tổ Hạ tầng Thanh Ba', 'Tổ Hạ tầng Thanh Sơn',
+    ...records.map(r => r.to_ha_tang).filter(Boolean),
+    ...stations.map(s => s.to_ha_tang).filter(Boolean)
+  ])).sort();
+
   return (
     <div className="space-y-6 pb-10 animate-in fade-in duration-300">
       {/* Top Title & Export Bar */}
@@ -68,11 +74,12 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
             className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-vnpt-500"
           >
             <option value="Tất cả">Tất cả Tổ Hạ tầng</option>
-            <option value="Việt Trì">Tổ Hạ tầng Việt Trì</option>
-            <option value="Phú Thọ">Tổ Hạ tầng Phú Thọ</option>
-            <option value="Vĩnh Yên">Tổ Hạ tầng Vĩnh Yên</option>
-            <option value="Hòa Bình">Tổ Hạ tầng Hòa Bình</option>
-            <option value="Lương Sơn">Tổ Hạ tầng Lương Sơn</option>
+            {availableOrgs.map(org => {
+              const name = org.replace('Tổ Hạ tầng ', '');
+              return (
+                <option key={org} value={name}>{org.startsWith('Tổ Hạ tầng') ? org : `Tổ Hạ tầng ${org}`}</option>
+              );
+            })}
           </select>
         </div>
       </div>
