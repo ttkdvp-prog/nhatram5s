@@ -23,8 +23,8 @@ export const Layout: React.FC = () => {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [selectedRecordForForm, setSelectedRecordForForm] = useState<SurveyRecord | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
     const data = await fetchDashboardData();
     setKpis(data.kpis);
     setOrgScores(data.orgScores);
@@ -32,11 +32,16 @@ export const Layout: React.FC = () => {
     setRecords(data.records);
     setRecommendations(data.recommendations);
     setIsLive(data.isLive);
-    setLoading(false);
+    if (!silent) setLoading(false);
   };
 
   useEffect(() => {
-    loadData();
+    loadData(false);
+    // Vòng lặp đồng bộ tức thì 3 giây với Google Sheets
+    const timer = setInterval(() => {
+      loadData(true);
+    }, 3000);
+    return () => clearInterval(timer);
   }, []);
 
   const handleSaveSurvey = async (formData: Partial<SurveyRecord>) => {

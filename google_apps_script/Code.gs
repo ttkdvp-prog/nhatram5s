@@ -81,6 +81,8 @@ function doPost(e) {
       response = handleAddStation(postData.data);
     }
 
+    SpreadsheetApp.flush(); // Ép ghi tức thì vào Google Sheet
+
     return createJsonResponse(response);
   } catch (err) {
     return createJsonResponse({ status: 'error', message: err.toString() });
@@ -108,6 +110,8 @@ function setupSheetsIfMissing() {
       sheet.appendRow(defaultHeaders[sheetName]);
     }
   });
+
+  SpreadsheetApp.flush();
 }
 
 function getSheetData(sheetName) {
@@ -220,6 +224,8 @@ function handleSaveSurvey(surveyData) {
     ]);
   }
 
+  SpreadsheetApp.flush();
+
   return { status: 'success', message: 'Lưu phiếu khảo sát 5S thành công!', recordId: newId };
 }
 
@@ -235,6 +241,7 @@ function handleUpdateRecommendationStatus(data) {
       if (data.trang_thai === 'Hoàn thành') {
         sheet.getRange(i + 1, 14).setValue(new Date().toISOString().split('T')[0]);
       }
+      SpreadsheetApp.flush();
       return { status: 'success', message: 'Cập nhật trạng thái kiến nghị thành công!' };
     }
   }
@@ -260,6 +267,8 @@ function handleAddStation(data) {
     'Đang khai thác',
     data.ghi_chu || ''
   ]);
+
+  SpreadsheetApp.flush();
 
   return { status: 'success', message: 'Thêm nhà trạm thành công!', stationId: newId };
 }
