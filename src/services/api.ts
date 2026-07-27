@@ -6,8 +6,10 @@ const LOCAL_STORAGE_KEY_STATIONS = 'nhatram5s_stations_data';
 const LOCAL_STORAGE_KEY_RECORDS = 'nhatram5s_records_data';
 const LOCAL_STORAGE_KEY_RECOMMENDATIONS = 'nhatram5s_recs_data';
 
+export const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyy4cCz3jk2IB1GzkbwPH5pxnMMLEQc5XW4TXvRy0KZWzSm3Vh6xKMwa65O1vby5HxqXQ/exec';
+
 export const getAppScriptUrl = (): string => {
-  return localStorage.getItem(LOCAL_STORAGE_KEY_URL) || '';
+  return localStorage.getItem(LOCAL_STORAGE_KEY_URL) || DEFAULT_APPS_SCRIPT_URL;
 };
 
 export const setAppScriptUrl = (url: string) => {
