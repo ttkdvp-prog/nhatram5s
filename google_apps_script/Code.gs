@@ -1,18 +1,16 @@
 /**
- * GOOGLE APPS SCRIPT BACKEND FOR WEB APP DASHBOARD "NHÀ TRẠM 5S"
+ * GOOGLE APPS SCRIPT BACKEND & ALL-IN-ONE WEB APP "NHÀ TRẠM 5S"
  * VNPT TRUNG TÂM HẠ TẦNG PHÚ THỌ
  * 
- * Hướng dẫn cài đặt:
- * 1. Tạo một Google Sheets mới trên Google Drive (hoặc mở Sheet sẵn có).
- * 2. Vào Tiện ích mở rộng (Extensions) -> Apps Script.
- * 3. Xóa hết mã mặc định và dán toàn bộ nội dung file này vào file Code.gs.
- * 4. Nhấn "Triển khai" (Deploy) -> "Triển khai dưới dạng ứng dụng web" (New deployment -> Web app).
- * 5. Chọn:
- *    - Mô tả: WebApp Backend Nhà Trạm 5S
+ * Hướng dẫn 1-Click (Siêu tiện lợi):
+ * 1. Mở Google Sheets của bạn -> Tiện ích mở rộng (Extensions) -> Apps Script.
+ * 2. Tạo 2 file trong Apps Script:
+ *    - File 1 (Code.gs): Copy toàn bộ mã trong file Code.gs này dán vào.
+ *    - File 2 (Index.html): Tạo file HTML đặt tên 'Index', copy nội dung file Index.html dán vào.
+ * 3. Nhấn Triển khai (Deploy) -> Triển khai dưới dạng ứng dụng web.
  *    - Thực thi dưới dạng: Tôi (Me)
  *    - Ai có quyền truy cập: Bất kỳ ai (Anyone)
- * 6. Copy URL Web App (có dạng https://script.google.com/macros/s/.../exec).
- * 7. Dán URL này vào cấu hình Web App của bạn (Nút Cấu hình kết nối ở góc phải Web App).
+ * 4. Mở URL Web App -> Web App hiển thị trực tiếp và đồng bộ Google Sheet ngay lập tức!
  */
 
 const SHEET_NAMES = {
@@ -27,8 +25,16 @@ const SHEET_NAMES = {
 
 function doGet(e) {
   const params = e ? e.parameter : {};
-  const action = params.action || 'getAll';
-  
+  const action = params.action;
+
+  // Nếu truy cập trực tiếp từ trình duyệt (không có action API), hiển thị toàn bộ giao diện WebApp!
+  if (!action) {
+    return HtmlService.createHtmlOutputFromFile('Index')
+      .setTitle('Nhà Trạm 5S - Trung tâm Hạ tầng VNPT Phú Thọ')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   try {
     setupSheetsIfMissing();
     
@@ -132,7 +138,6 @@ function handleSaveSurvey(surveyData) {
 
   const newId = 'HS' + String(recordsSheet.getLastRow()).padStart(4, '0');
   
-  // Calculate rankings
   const totalAfter = (surveyData.s1_sau || 0) + (surveyData.s2_sau || 0) + (surveyData.s3_sau || 0) + (surveyData.s4_sau || 0) + (surveyData.s5_sau || 0);
   let xepLoaiSau = 'Chưa đạt';
   if (totalAfter >= 90) xepLoaiSau = 'Tiêu biểu';
@@ -193,7 +198,6 @@ function handleSaveSurvey(surveyData) {
     ]);
   }
 
-  // If there's risk recommendation text, append to KIEN_NGHI
   if (surveyData.noi_dung_kien_nghi && recsSheet) {
     recsSheet.appendRow([
       'KN' + String(recsSheet.getLastRow()).padStart(4, '0'),
@@ -227,9 +231,9 @@ function handleUpdateRecommendationStatus(data) {
   const values = sheet.getDataRange().getValues();
   for (let i = 1; i < values.length; i++) {
     if (values[i][0] === data.id_kien_nghi) {
-      sheet.getRange(i + 1, 13).setValue(data.trang_thai); // Col 13 = trang_thai
+      sheet.getRange(i + 1, 13).setValue(data.trang_thai);
       if (data.trang_thai === 'Hoàn thành') {
-        sheet.getRange(i + 1, 14).setValue(new Date().toISOString().split('T')[0]); // Col 14 = ngay_hoan_thanh
+        sheet.getRange(i + 1, 14).setValue(new Date().toISOString().split('T')[0]);
       }
       return { status: 'success', message: 'Cập nhật trạng thái kiến nghị thành công!' };
     }
