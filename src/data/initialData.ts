@@ -9,10 +9,9 @@ export const INITIAL_KPIS: DashboardKpi = {
 };
 
 export const INITIAL_ORG_SCORES: OrgScoreSummary[] = [
-  { to_ha_tang: 'Phú Thọ', scoreBefore: 66, scoreAfter: 86 },
+  { to_ha_tang: 'Việt Trì', scoreBefore: 73, scoreAfter: 91 },
   { to_ha_tang: 'Vĩnh Yên', scoreBefore: 71, scoreAfter: 89 },
   { to_ha_tang: 'Hòa Bình', scoreBefore: 64, scoreAfter: 84 },
-  { to_ha_tang: 'Việt Trì', scoreBefore: 73, scoreAfter: 91 },
   { to_ha_tang: 'Lương Sơn', scoreBefore: 68, scoreAfter: 87 },
   { to_ha_tang: 'Thanh Ba', scoreBefore: 65, scoreAfter: 85 },
   { to_ha_tang: 'Thanh Sơn', scoreBefore: 62, scoreAfter: 83 }
@@ -62,9 +61,9 @@ export const INITIAL_STATIONS: Station[] = [
   {
     id_nha_tram: 'NT0004',
     ma_nha_tram: 'CSHT_PTO_00105',
-    ten_nha_tram: 'Trạm Thị xã Phú Thọ 1',
-    to_ha_tang: 'Tổ Hạ tầng Phú Thọ',
-    dia_ban: 'Phú Thọ',
+    ten_nha_tram: 'Trạm Thanh Ba Center',
+    to_ha_tang: 'Tổ Hạ tầng Thanh Ba',
+    dia_ban: 'Thanh Ba',
     loai_nha_tram: 'Phòng máy',
     dia_chi: 'Phường Phong Châu, TX Phú Thọ',
     co_may_phat: 'Có',

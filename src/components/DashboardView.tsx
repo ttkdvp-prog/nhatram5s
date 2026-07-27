@@ -29,7 +29,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Dynamically extract all unique "Tổ Hạ tầng" from Google Sheets live data & defaults
   const availableOrgs = useMemo(() => {
     const orgSet = new Set<string>();
-    const defaults = ['Tổ Hạ tầng Việt Trì', 'Tổ Hạ tầng Phú Thọ', 'Tổ Hạ tầng Vĩnh Yên', 'Tổ Hạ tầng Hòa Bình', 'Tổ Hạ tầng Lương Sơn', 'Tổ Hạ tầng Thanh Ba', 'Tổ Hạ tầng Thanh Sơn'];
+    const defaults = ['Tổ Hạ tầng Việt Trì', 'Tổ Hạ tầng Vĩnh Yên', 'Tổ Hạ tầng Hòa Bình', 'Tổ Hạ tầng Lương Sơn', 'Tổ Hạ tầng Thanh Ba', 'Tổ Hạ tầng Thanh Sơn'];
     defaults.forEach(o => orgSet.add(o));
 
     records.forEach(r => {

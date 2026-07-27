@@ -30,7 +30,7 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
   };
 
   const availableOrgs = Array.from(new Set([
-    'Tổ Hạ tầng Việt Trì', 'Tổ Hạ tầng Phú Thọ', 'Tổ Hạ tầng Vĩnh Yên', 'Tổ Hạ tầng Hòa Bình', 'Tổ Hạ tầng Lương Sơn', 'Tổ Hạ tầng Thanh Ba', 'Tổ Hạ tầng Thanh Sơn',
+    'Tổ Hạ tầng Việt Trì', 'Tổ Hạ tầng Vĩnh Yên', 'Tổ Hạ tầng Hòa Bình', 'Tổ Hạ tầng Lương Sơn', 'Tổ Hạ tầng Thanh Ba', 'Tổ Hạ tầng Thanh Sơn',
     ...records.map(r => r.to_ha_tang).filter(Boolean),
     ...stations.map(s => s.to_ha_tang).filter(Boolean)
   ])).sort();
