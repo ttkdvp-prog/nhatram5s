@@ -92,7 +92,7 @@ export const Layout: React.FC = () => {
               }`}
             >
               <Database className="w-3.5 h-3.5" />
-              <span>{isLive ? 'Google Sheets Live' : 'Demo Local Data'}</span>
+              <span>{isLive ? 'HỆ THỐNG TRỰC TUYẾN' : 'DỮ LIỆU MINH HỌA'}</span>
             </button>
 
             <button
@@ -106,7 +106,7 @@ export const Layout: React.FC = () => {
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-              title="Cấu hình Google Apps Script"
+              title="Cấu hình kết nối hệ thống"
             >
               <Settings className="w-4 h-4 text-vnpt-700" />
             </button>

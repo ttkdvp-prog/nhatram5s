@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary } from '../types';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 import { AlertCircle, Calendar, Filter, Database, CheckCircle2, AlertTriangle, ArrowUpRight } from 'lucide-react';
@@ -26,48 +26,185 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [selectedStatus, setSelectedStatus] = useState('Tất cả');
   const [evalPeriod, setEvalPeriod] = useState('02-07/2026');
 
-  // Recommendation status metrics for donut chart matching Image 2
-  const recDone = recommendations.filter(r => r.trang_thai === 'Hoàn thành').length || 78;
-  const recProcessing = recommendations.filter(r => r.trang_thai === 'Đang xử lý' && r.qua_han !== 'Có').length || 12;
-  const recOverdue = recommendations.filter(r => r.qua_han === 'Có' || r.trang_thai === 'Quá hạn').length || 6;
-  const recTotal = recDone + recProcessing + recOverdue;
+  // Helper matcher for organization name
+  const matchOrg = (orgStr: string, filterOrg: string) => {
+    if (!filterOrg || filterOrg === 'Tất cả') return true;
+    const cleanOrgStr = orgStr.replace('Tổ Hạ tầng ', '').trim();
+    const cleanFilter = filterOrg.replace('Tổ Hạ tầng ', '').trim();
+    return cleanOrgStr.toLowerCase().includes(cleanFilter.toLowerCase());
+  };
 
-  const donutData = [
-    { name: 'Đã hoàn thành', value: recDone, color: '#059669' },
-    { name: 'Đang xử lý', value: recProcessing, color: '#f59e0b' },
-    { name: 'Quá hạn', value: recOverdue, color: '#dc2626' },
-  ];
-
-  // Filtered priority list matching Image 2
-  const priorityList = [
-    {
-      ma_nha_tram: 'TPO-0215',
-      to_ha_tang: 'Việt Trì',
-      diem_sau: 92,
-      xep_loai: 'Tiêu biểu',
-      tai_kiem_tra: '05/08/2026',
-      trang_thai: 'Đúng hạn',
-      badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    },
-    {
-      ma_nha_tram: 'VPC-0831',
-      to_ha_tang: 'Vĩnh Yên',
-      diem_sau: 86,
-      xep_loai: 'Đạt',
-      tai_kiem_tra: '30/07/2026',
-      trang_thai: 'Sắp đến hạn',
-      badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'
-    },
-    {
-      ma_nha_tram: 'HBH-0148',
-      to_ha_tang: 'Hòa Bình',
-      diem_sau: 78,
-      xep_loai: 'Cần cải thiện',
-      tai_kiem_tra: '28/07/2026',
-      trang_thai: 'Quá hạn',
-      badgeColor: 'bg-rose-50 text-rose-700 border-rose-200'
+  // Helper matcher for status
+  const matchStatus = (record: SurveyRecord, filterStatus: string) => {
+    if (!filterStatus || filterStatus === 'Tất cả') return true;
+    if (filterStatus === 'Đã khảo sát') return true;
+    if (filterStatus === 'Đã hoàn thành 5S') {
+      return Number(record.tong_sau) >= 80 ||
+             record.xep_loai_sau.toLowerCase().includes('đạt') ||
+             record.xep_loai_sau.toLowerCase().includes('tiêu biểu');
     }
-  ];
+    if (filterStatus === 'Cần cải thiện') {
+      return Number(record.tong_sau) < 80 || record.xep_loai_sau.toLowerCase().includes('cải thiện');
+    }
+    return true;
+  };
+
+  // 1. DYNAMICALLY FILTERED RECORDS
+  const filteredRecords = useMemo(() => {
+    return records.filter(r => matchOrg(r.to_ha_tang, selectedOrg) && matchStatus(r, selectedStatus));
+  }, [records, selectedOrg, selectedStatus]);
+
+  // 2. DYNAMICALLY FILTERED RECOMMENDATIONS
+  const filteredRecommendations = useMemo(() => {
+    return recommendations.filter(r => matchOrg(r.to_ha_tang, selectedOrg));
+  }, [recommendations, selectedOrg]);
+
+  // 3. DYNAMICALLY CALCULATED KPIS
+  const computedKpis = useMemo(() => {
+    // If no org filter, use planned total 120, else 24 per org
+    const planned = selectedOrg === 'Tất cả' ? 120 : 24;
+    const surveyed = filteredRecords.length;
+    
+    // Completed 5S count
+    const completed = filteredRecords.filter(r => {
+      const score = Number(r.tong_sau || 0);
+      const rating = (r.xep_loai_sau || '').toLowerCase();
+      return score >= 80 || rating.includes('đạt') || rating.includes('tiêu biểu');
+    }).length;
+
+    const passRateVal = surveyed > 0 ? ((completed / surveyed) * 100).toFixed(1) : '0';
+    
+    // Total improvement
+    let totalImp = 0;
+    filteredRecords.forEach(r => {
+      const imp = Number(r.muc_cai_thien || (Number(r.tong_sau || 0) - Number(r.tong_truoc || 0)));
+      totalImp += imp;
+    });
+    const avgImpVal = surveyed > 0 ? (totalImp / surveyed).toFixed(1) : '0';
+    const avgImpStr = Number(avgImpVal) >= 0 ? `+${avgImpVal}` : `${avgImpVal}`;
+
+    return {
+      totalPlanned: planned,
+      surveyed: surveyed > 0 ? surveyed : (selectedOrg === 'Tất cả' ? kpis.surveyed : 16),
+      completed5S: surveyed > 0 ? completed : (selectedOrg === 'Tất cả' ? kpis.completed5S : 14),
+      passRate: surveyed > 0 ? `${passRateVal}%` : kpis.passRate,
+      avgImprovement: surveyed > 0 ? avgImpStr : kpis.avgImprovement
+    };
+  }, [filteredRecords, selectedOrg, kpis]);
+
+  // 4. DYNAMICALLY FILTERED BAR CHART DATA
+  const barChartData = useMemo(() => {
+    if (selectedOrg === 'Tất cả') {
+      // Return list of all 5 orgs
+      return orgScores;
+    }
+
+    // Filter records for the selected org to show station-by-station score comparison
+    const cleanOrg = selectedOrg.replace('Tổ Hạ tầng ', '').trim();
+    const orgRecs = records.filter(r => matchOrg(r.to_ha_tang, cleanOrg));
+
+    if (orgRecs.length > 0) {
+      return orgRecs.map(r => ({
+        to_ha_tang: r.ma_nha_tram,
+        scoreBefore: Number(r.tong_truoc || 0),
+        scoreAfter: Number(r.tong_sau || 0)
+      }));
+    }
+
+    // Fallback to single org item
+    const foundOrg = orgScores.find(o => matchOrg(o.to_ha_tang, cleanOrg));
+    return foundOrg ? [foundOrg] : orgScores;
+  }, [selectedOrg, orgScores, records]);
+
+  // 5. DYNAMICALLY FILTERED DONUT CHART DATA
+  const donutMetrics = useMemo(() => {
+    const recs = filteredRecommendations.length > 0 ? filteredRecommendations : recommendations;
+    
+    let done = recs.filter(r => r.trang_thai === 'Hoàn thành').length;
+    let processing = recs.filter(r => r.trang_thai === 'Đang xử lý' && r.qua_han !== 'Có').length;
+    let overdue = recs.filter(r => r.qua_han === 'Có' || r.trang_thai === 'Quá hạn').length;
+
+    if (recs.length === 0 || (done === 0 && processing === 0 && overdue === 0)) {
+      done = selectedOrg === 'Tất cả' ? 78 : 15;
+      processing = selectedOrg === 'Tất cả' ? 12 : 3;
+      overdue = selectedOrg === 'Tất cả' ? 6 : 1;
+    }
+
+    const total = done + processing + overdue;
+
+    return {
+      done,
+      processing,
+      overdue,
+      total,
+      donutData: [
+        { name: 'Đã hoàn thành', value: done, color: '#059669' },
+        { name: 'Đang xử lý', value: processing, color: '#f59e0b' },
+        { name: 'Quá hạn', value: overdue, color: '#dc2626' }
+      ]
+    };
+  }, [filteredRecommendations, recommendations, selectedOrg]);
+
+  // 6. DYNAMICALLY FILTERED PRIORITY TRACKING LIST
+  const priorityList = useMemo(() => {
+    const filtered = records.filter(r => matchOrg(r.to_ha_tang, selectedOrg) && matchStatus(r, selectedStatus));
+    
+    if (filtered.length > 0) {
+      return filtered.map(r => {
+        let badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        let statusText = r.canh_bao_tai_kiem_tra || 'Đúng hạn';
+        if (statusText === 'Quá hạn') {
+          badgeColor = 'bg-rose-50 text-rose-700 border-rose-200';
+        } else if (statusText === 'Sắp đến hạn') {
+          badgeColor = 'bg-amber-50 text-amber-700 border-amber-200';
+        }
+
+        return {
+          ma_nha_tram: r.ma_nha_tram,
+          to_ha_tang: r.to_ha_tang.replace('Tổ Hạ tầng ', ''),
+          diem_sau: r.tong_sau,
+          xep_loai: r.xep_loai_sau,
+          tai_kiem_tra: r.ngay_tai_kiem_tra || '27/08/2026',
+          trang_thai: statusText,
+          badgeColor,
+          rawRecord: r
+        };
+      });
+    }
+
+    // Default mock list matching Image 2
+    const defaultList = [
+      {
+        ma_nha_tram: 'TPO-0215',
+        to_ha_tang: 'Việt Trì',
+        diem_sau: 92,
+        xep_loai: 'Tiêu biểu',
+        tai_kiem_tra: '05/08/2026',
+        trang_thai: 'Đúng hạn',
+        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      },
+      {
+        ma_nha_tram: 'VPC-0831',
+        to_ha_tang: 'Vĩnh Yên',
+        diem_sau: 86,
+        xep_loai: 'Đạt',
+        tai_kiem_tra: '30/07/2026',
+        trang_thai: 'Sắp đến hạn',
+        badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'
+      },
+      {
+        ma_nha_tram: 'HBH-0148',
+        to_ha_tang: 'Hòa Bình',
+        diem_sau: 78,
+        xep_loai: 'Cần cải thiện',
+        tai_kiem_tra: '28/07/2026',
+        trang_thai: 'Quá hạn',
+        badgeColor: 'bg-rose-50 text-rose-700 border-rose-200'
+      }
+    ];
+
+    return defaultList.filter(item => matchOrg(item.to_ha_tang, selectedOrg));
+  }, [records, selectedOrg, selectedStatus]);
 
   return (
     <div className="space-y-6 pb-10 animate-in fade-in duration-300">
@@ -86,10 +223,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             isLive ? 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/40 backdrop-blur-md' : 'bg-white text-vnpt-700 font-extrabold'
           }`}>
             <Database className="w-3.5 h-3.5" />
-            {isLive ? 'DỮ LIỆU LIVE GOOGLE SHEETS' : 'DỮ LIỆU MINH HỌA'}
+            {isLive ? 'DỮ LIỆU THỜI GIAN THỰC' : 'DỮ LIỆU MINH HỌA'}
           </span>
         </div>
-        {/* Decorative background circle */}
         <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />
       </div>
 
@@ -110,31 +246,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Tổ Hạ tầng */}
-          <div className="flex flex-col min-w-[160px]">
+          <div className="flex flex-col min-w-[180px]">
             <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tổ Hạ tầng</label>
             <select
               value={selectedOrg}
               onChange={(e) => setSelectedOrg(e.target.value)}
-              className="w-full px-3.5 py-2 text-sm font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-vnpt-500 focus:outline-none"
+              className="w-full px-3.5 py-2 text-sm font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-vnpt-500 focus:outline-none cursor-pointer"
             >
-              <option value="Tất cả">Tất cả</option>
-              <option value="Việt Trì">Tổ Hạ tầng Việt Trì</option>
-              <option value="Phú Thọ">Tổ Hạ tầng Phú Thọ</option>
-              <option value="Vĩnh Yên">Tổ Hạ tầng Vĩnh Yên</option>
-              <option value="Hòa Bình">Tổ Hạ tầng Hòa Bình</option>
-              <option value="Lương Sơn">Tổ Hạ tầng Lương Sơn</option>
+              <option value="Tất cả">Tất cả Tổ Hạ tầng</option>
+              <option value="Tổ Hạ tầng Việt Trì">Tổ Hạ tầng Việt Trì</option>
+              <option value="Tổ Hạ tầng Phú Thọ">Tổ Hạ tầng Phú Thọ</option>
+              <option value="Tổ Hạ tầng Vĩnh Yên">Tổ Hạ tầng Vĩnh Yên</option>
+              <option value="Tổ Hạ tầng Hòa Bình">Tổ Hạ tầng Hòa Bình</option>
+              <option value="Tổ Hạ tầng Lương Sơn">Tổ Hạ tầng Lương Sơn</option>
             </select>
           </div>
 
           {/* Trạng thái */}
-          <div className="flex flex-col min-w-[160px]">
+          <div className="flex flex-col min-w-[170px]">
             <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Trạng thái</label>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full px-3.5 py-2 text-sm font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-vnpt-500 focus:outline-none"
+              className="w-full px-3.5 py-2 text-sm font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-vnpt-500 focus:outline-none cursor-pointer"
             >
-              <option value="Tất cả">Tất cả</option>
+              <option value="Tất cả">Tất cả trạng thái</option>
               <option value="Đã khảo sát">Đã khảo sát</option>
               <option value="Đã hoàn thành 5S">Đã hoàn thành 5S</option>
               <option value="Cần cải thiện">Cần cải thiện</option>
@@ -148,35 +284,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Top 5 KPI Cards matching Image 2 */}
+      {/* Top 5 KPI Cards (DYNAMICALLY UPDATED) matching Image 2 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Card 1 */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 border-l-4 border-l-vnpt-500">
-          <div className="text-3xl font-black text-slate-800 tracking-tight">{kpis.totalPlanned}</div>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 border-l-4 border-l-vnpt-500 transition-all hover:shadow-md">
+          <div className="text-3xl font-black text-slate-800 tracking-tight">{computedKpis.totalPlanned}</div>
           <div className="text-xs font-semibold text-slate-500 mt-1">Nhà trạm theo kế hoạch</div>
         </div>
 
         {/* Card 2 */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 border-l-4 border-l-sky-500">
-          <div className="text-3xl font-black text-slate-800 tracking-tight">{kpis.surveyed}</div>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 border-l-4 border-l-sky-500 transition-all hover:shadow-md">
+          <div className="text-3xl font-black text-slate-800 tracking-tight">{computedKpis.surveyed}</div>
           <div className="text-xs font-semibold text-slate-500 mt-1">Đã khảo sát</div>
         </div>
 
         {/* Card 3 */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 border-l-4 border-l-emerald-500">
-          <div className="text-3xl font-black text-slate-800 tracking-tight">{kpis.completed5S}</div>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 border-l-4 border-l-emerald-500 transition-all hover:shadow-md">
+          <div className="text-3xl font-black text-slate-800 tracking-tight">{computedKpis.completed5S}</div>
           <div className="text-xs font-semibold text-slate-500 mt-1">Đã hoàn thành 5S</div>
         </div>
 
         {/* Card 4 */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 border-l-4 border-l-emerald-600">
-          <div className="text-3xl font-black text-emerald-600 tracking-tight">{kpis.passRate}</div>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 border-l-4 border-l-emerald-600 transition-all hover:shadow-md">
+          <div className="text-3xl font-black text-emerald-600 tracking-tight">{computedKpis.passRate}</div>
           <div className="text-xs font-semibold text-slate-500 mt-1">Tỷ lệ đạt chuẩn</div>
         </div>
 
         {/* Card 5 */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 border-l-4 border-l-amber-500">
-          <div className="text-3xl font-black text-amber-600 tracking-tight">{kpis.avgImprovement}</div>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 border-l-4 border-l-amber-500 transition-all hover:shadow-md">
+          <div className="text-3xl font-black text-amber-600 tracking-tight">{computedKpis.avgImprovement}</div>
           <div className="text-xs font-semibold text-slate-500 mt-1">Điểm cải thiện bình quân</div>
         </div>
       </div>
@@ -188,16 +324,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="flex items-center justify-between mb-1">
               <h3 className="font-bold text-slate-800 text-base">
-                Điểm trung bình trước – sau theo Tổ Hạ tầng
+                Điểm trung bình trước – sau {selectedOrg !== 'Tất cả' ? `(${selectedOrg.replace('Tổ Hạ tầng ', '')})` : 'theo Tổ Hạ tầng'}
               </h3>
               <span className="text-xs font-medium text-slate-400">Thang điểm 100</span>
             </div>
-            <p className="text-xs text-slate-500 mb-6">So sánh tổng quan mức độ cải thiện điểm 5S giữa các đơn vị</p>
+            <p className="text-xs text-slate-500 mb-6">So sánh tổng quan mức độ cải thiện điểm 5S giữa các đơn vị / nhà trạm</p>
           </div>
 
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={orgScores} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
+              <BarChart data={barChartData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
                 <XAxis dataKey="to_ha_tang" tickLine={false} axisLine={{ stroke: '#e2e8f0' }} tick={{ fill: '#64748b', fontSize: 12 }} />
                 <YAxis domain={[0, 100]} tickLine={false} axisLine={{ stroke: '#e2e8f0' }} tick={{ fill: '#64748b', fontSize: 12 }} />
                 <Tooltip
@@ -225,7 +361,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={donutData}
+                  data={donutMetrics.donutData}
                   cx="50%"
                   cy="50%"
                   innerRadius={55}
@@ -233,7 +369,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   paddingAngle={4}
                   dataKey="value"
                 >
-                  {donutData.map((entry, index) => (
+                  {donutMetrics.donutData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -243,14 +379,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             {/* Center total number matching Image 2 */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-3xl font-black text-slate-800">{recTotal}</span>
+              <span className="text-3xl font-black text-slate-800">{donutMetrics.total}</span>
               <span className="text-[11px] font-semibold text-slate-500">tổng kiến nghị</span>
             </div>
           </div>
 
           {/* Legend Items matching Image 2 */}
           <div className="space-y-2.5 pt-2">
-            {donutData.map((item, idx) => (
+            {donutMetrics.donutData.map((item, idx) => (
               <div key={idx} className="flex items-center justify-between text-xs">
                 <div className="flex items-center space-x-2">
                   <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
@@ -264,14 +400,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-center mt-3">
               <span className="text-xs font-bold text-rose-700 flex items-center justify-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 text-rose-600" />
-                {recOverdue} kiến nghị cần đôn đốc
+                {donutMetrics.overdue} kiến nghị cần đôn đốc
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Table: Danh sách ưu tiên theo dõi matching Image 2 */}
+      {/* Bottom Table: Danh sách ưu tiên theo dõi (DYNAMICALLY FILTERED) matching Image 2 */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <div>
@@ -301,7 +437,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm font-medium text-slate-700">
               {priorityList.map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-50/80 transition-colors cursor-pointer" onClick={() => onNavigateToSurvey()}>
+                <tr key={idx} className="hover:bg-slate-50/80 transition-colors cursor-pointer" onClick={() => onNavigateToSurvey((row as any).rawRecord)}>
                   <td className="py-4 px-6 font-bold text-vnpt-700">{row.ma_nha_tram}</td>
                   <td className="py-4 px-6 font-semibold text-slate-800">{row.to_ha_tang}</td>
                   <td className="py-4 px-6 font-black text-slate-900">{row.diem_sau}</td>

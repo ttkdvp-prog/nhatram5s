@@ -26,7 +26,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
   const handleTestConnection = async () => {
     if (!url) {
       setStatus('error');
-      setMessage('Vui lòng nhập URL Google Apps Script Web App');
+      setMessage('Vui lòng nhập URL kết nối hệ thống');
       return;
     }
     setStatus('testing');
@@ -36,14 +36,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
       const data = await res.json();
       if (data.status === 'success') {
         setStatus('success');
-        setMessage('Kết nối Google Sheets thành công!');
+        setMessage('Kết nối máy chủ dữ liệu thành công!');
       } else {
         setStatus('error');
-        setMessage('Kết nối không thành công. Hãy kiểm tra lại phân quyền Web App.');
+        setMessage('Kết nối không thành công. Hãy kiểm tra lại phân quyền ứng dụng.');
       }
     } catch (e) {
       setStatus('error');
-      setMessage('Lỗi kết nối. Vui lòng đảm bảo Web App đã được triển khai chọn "Anyone".');
+      setMessage('Lỗi kết nối. Vui lòng kiểm tra lại địa chỉ Web App API.');
     }
   };
 
@@ -60,8 +60,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           <div className="flex items-center space-x-3">
             <Server className="w-6 h-6 text-sky-200" />
             <div>
-              <h3 className="font-bold text-lg">Cấu hình kết nối Google Sheets (Apps Script)</h3>
-              <p className="text-xs text-sky-100">Đồng bộ dữ liệu thời gian thực giữa Web App và Google Sheet</p>
+              <h3 className="font-bold text-lg">Cấu hình kết nối máy chủ dữ liệu</h3>
+              <p className="text-xs text-sky-100">Đồng bộ dữ liệu thời gian thực giữa Web App và Hệ thống điều hành</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/20 text-white transition-colors">
@@ -72,17 +72,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
         <div className="p-6 space-y-5">
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-900 leading-relaxed">
             <p className="font-semibold text-blue-800 mb-1 flex items-center gap-1.5">
-              <ExternalLink className="w-4 h-4 text-blue-600" /> Cài đặt Google Apps Script:
+              <ExternalLink className="w-4 h-4 text-blue-600" /> Cài đặt địa chỉ Web App API:
             </p>
-            1. Mở file <code className="bg-blue-100 px-1 py-0.5 rounded font-mono">google_apps_script/Code.gs</code> trong dự án này.<br />
-            2. Mở Google Sheet của bạn &gt; Tiện ích mở rộng &gt; Apps Script &gt; Dán mã.<br />
-            3. Nhấn <strong>Triển khai (Deploy)</strong> &gt; <strong>Triển khai dưới dạng ứng dụng web</strong> &gt; Chọn quyền truy cập: <em>"Bất kỳ ai (Anyone)"</em>.<br />
-            4. Copy URL Web App có đuôi <code className="bg-blue-100 px-1 py-0.5 rounded font-mono">/exec</code> dán vào ô bên dưới.
+            1. Mở hệ thống lưu trữ dữ liệu của bạn.<br />
+            2. Triển khai dưới dạng Web App API với quyền truy cập <em>"Bất kỳ ai (Anyone)"</em>.<br />
+            3. Dán liên kết URL Web App API nhận được vào ô bên dưới.
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Google Apps Script Web App URL:
+              Địa chỉ Web App API endpoint:
             </label>
             <input
               type="text"
