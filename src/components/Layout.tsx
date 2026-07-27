@@ -5,15 +5,13 @@ import { SurveyFormView } from './SurveyFormView';
 import { StationRecordsView } from './StationRecordsView';
 import { RecommendationsView } from './RecommendationsView';
 import { ReportsView } from './ReportsView';
-import { SettingsModal } from './SettingsModal';
 import { fetchDashboardData, saveSurveyForm } from '../services/api';
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary } from '../types';
-import { Menu, Settings, Database, RefreshCw } from 'lucide-react';
+import { Menu } from 'lucide-react';
 
 export const Layout: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [isOpenMobile, setIsOpenMobile] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Data state
   const [loading, setLoading] = useState(true);
@@ -80,37 +78,6 @@ export const Layout: React.FC = () => {
               </span>
             </div>
           </div>
-
-          <div className="flex items-center space-x-3">
-            {/* Live Data Badge */}
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
-                isLive
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
-                  : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
-              }`}
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span>{isLive ? 'HỆ THỐNG TRỰC TUYẾN' : 'DỮ LIỆU MINH HỌA'}</span>
-            </button>
-
-            <button
-              onClick={loadData}
-              className="p-2 text-slate-500 hover:text-vnpt-600 hover:bg-slate-100 rounded-xl transition-colors"
-              title="Tải lại dữ liệu"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-              title="Cấu hình kết nối hệ thống"
-            >
-              <Settings className="w-4 h-4 text-vnpt-700" />
-            </button>
-          </div>
         </header>
 
         {/* Dynamic Route View Scope */}
@@ -152,13 +119,6 @@ export const Layout: React.FC = () => {
           )}
         </main>
       </div>
-
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        onSaved={loadData}
-      />
     </div>
   );
 };

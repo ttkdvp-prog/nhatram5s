@@ -218,14 +218,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Theo dõi cải thiện điều kiện lao động tại Trung tâm Hạ tầng VNPT Phú Thọ
           </p>
         </div>
-        <div className="z-10 flex items-center space-x-3">
-          <span className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider shadow-inner flex items-center gap-1.5 ${
-            isLive ? 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/40 backdrop-blur-md' : 'bg-white text-vnpt-700 font-extrabold'
-          }`}>
-            <Database className="w-3.5 h-3.5" />
-            {isLive ? 'DỮ LIỆU THỜI GIAN THỰC' : 'DỮ LIỆU MINH HỌA'}
-          </span>
-        </div>
         <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />
       </div>
 
