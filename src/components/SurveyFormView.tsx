@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Station, SurveyRecord } from '../types';
 import { QRCodeSVG } from 'qrcode.react';
-import { Save, Camera, CheckCircle, AlertTriangle, Building2, Sparkles, Upload, X, QrCode, Download, Eye } from 'lucide-react';
+import { Save, Camera, CheckCircle, AlertTriangle, Building2, Sparkles, Upload, X, QrCode, Download, Eye, Trash2, ImageOff } from 'lucide-react';
 
 interface SurveyFormViewProps {
   stations: Station[];
@@ -52,6 +52,13 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
     'https://images.unsplash.com/photo-1581092795360-fd1ca04f0952?w=300&auto=format&fit=crop&q=80',
     'https://images.unsplash.com/photo-1581091215367-9b6c00b3035a?w=300&auto=format&fit=crop&q=80'
   ]);
+
+  // Track failed image URLs
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+
+  const handleImageError = (url: string) => {
+    setFailedImages(prev => ({ ...prev, [url]: true }));
+  };
 
   // File input refs for uploading
   const beforeFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -123,6 +130,19 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
 
   const removeAfterPhoto = (index: number) => {
     setAfterPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeAllBeforePhotos = () => {
+    setBeforePhotos([]);
+  };
+
+  const removeAllAfterPhotos = () => {
+    setAfterPhotos([]);
+  };
+
+  const removePhotoByUrl = (urlToRemove: string) => {
+    setBeforePhotos(prev => prev.filter(url => url !== urlToRemove));
+    setAfterPhotos(prev => prev.filter(url => url !== urlToRemove));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -420,24 +440,71 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
               {/* Before Photos Gallery */}
               {beforePhotos.length > 0 && (
                 <div>
-                  <div className="text-xs font-bold text-sky-800 mb-2 flex items-center gap-1.5">
-                    <Camera className="w-3.5 h-3.5 text-sky-600" />
-                    <span>Ảnh hiện trạng trước khi thực hiện ({beforePhotos.length})</span>
+                  <div className="text-xs font-bold text-sky-800 mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Camera className="w-3.5 h-3.5 text-sky-600" />
+                      <span>Ảnh hiện trạng trước khi thực hiện ({beforePhotos.length})</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeAllBeforePhotos}
+                      className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Xóa tất cả ảnh trước</span>
+                    </button>
                   </div>
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                    {beforePhotos.map((url, idx) => (
-                      <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100">
-                        <img src={url} alt={`Ảnh hiện trạng ${idx + 1}`} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1">
-                          <button type="button" onClick={() => setPreviewImage(url)} className="p-1 bg-white/80 rounded-full text-slate-800 hover:bg-white">
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          <button type="button" onClick={() => removeBeforePhoto(idx)} className="p-1 bg-rose-500 rounded-full text-white hover:bg-rose-600">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
+                    {beforePhotos.map((url, idx) => {
+                      const isBroken = failedImages[url];
+                      return (
+                        <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 shadow-xs">
+                          {isBroken ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-rose-50/80 border border-rose-200 text-rose-700">
+                              <ImageOff className="w-6 h-6 mb-1 text-rose-400" />
+                              <span className="text-[10px] font-semibold leading-tight line-clamp-1">Ảnh bị lỗi</span>
+                              <button
+                                type="button"
+                                onClick={() => removeBeforePhoto(idx)}
+                                className="mt-1 px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold shadow-xs cursor-pointer"
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <img
+                                src={url}
+                                alt={`Ảnh hiện trạng ${idx + 1}`}
+                                onError={() => handleImageError(url)}
+                                className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                                onClick={() => setPreviewImage(url)}
+                              />
+                              {/* Always Visible Top-Right Delete Button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeBeforePhoto(idx);
+                                }}
+                                title="Xóa ảnh này"
+                                className="absolute top-1 right-1 p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-md z-10 transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                              {/* Bottom Overlay Info */}
+                              <div
+                                onClick={() => setPreviewImage(url)}
+                                className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/70 to-transparent p-1.5 flex items-center justify-between text-white text-[10px] cursor-pointer"
+                              >
+                                <span className="truncate font-medium">Ảnh {idx + 1}</span>
+                                <Eye className="w-3.5 h-3.5 opacity-80" />
+                              </div>
+                            </>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -445,24 +512,71 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
               {/* After Photos Gallery */}
               {afterPhotos.length > 0 && (
                 <div>
-                  <div className="text-xs font-bold text-emerald-800 mb-2 flex items-center gap-1.5">
-                    <Upload className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Ảnh sau khi hoàn thành 5S ({afterPhotos.length})</span>
+                  <div className="text-xs font-bold text-emerald-800 mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Ảnh sau khi hoàn thành 5S ({afterPhotos.length})</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeAllAfterPhotos}
+                      className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Xóa tất cả ảnh sau</span>
+                    </button>
                   </div>
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                    {afterPhotos.map((url, idx) => (
-                      <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100">
-                        <img src={url} alt={`Ảnh sau cải thiện ${idx + 1}`} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1">
-                          <button type="button" onClick={() => setPreviewImage(url)} className="p-1 bg-white/80 rounded-full text-slate-800 hover:bg-white">
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          <button type="button" onClick={() => removeAfterPhoto(idx)} className="p-1 bg-rose-500 rounded-full text-white hover:bg-rose-600">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
+                    {afterPhotos.map((url, idx) => {
+                      const isBroken = failedImages[url];
+                      return (
+                        <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square bg-slate-100 shadow-xs">
+                          {isBroken ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-rose-50/80 border border-rose-200 text-rose-700">
+                              <ImageOff className="w-6 h-6 mb-1 text-rose-400" />
+                              <span className="text-[10px] font-semibold leading-tight line-clamp-1">Ảnh bị lỗi</span>
+                              <button
+                                type="button"
+                                onClick={() => removeAfterPhoto(idx)}
+                                className="mt-1 px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold shadow-xs cursor-pointer"
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <img
+                                src={url}
+                                alt={`Ảnh sau cải thiện ${idx + 1}`}
+                                onError={() => handleImageError(url)}
+                                className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                                onClick={() => setPreviewImage(url)}
+                              />
+                              {/* Always Visible Top-Right Delete Button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeAfterPhoto(idx);
+                                }}
+                                title="Xóa ảnh này"
+                                className="absolute top-1 right-1 p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-md z-10 transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                              {/* Bottom Overlay Info */}
+                              <div
+                                onClick={() => setPreviewImage(url)}
+                                className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/70 to-transparent p-1.5 flex items-center justify-between text-white text-[10px] cursor-pointer"
+                              >
+                                <span className="truncate font-medium">Ảnh {idx + 1}</span>
+                                <Eye className="w-3.5 h-3.5 opacity-80" />
+                              </div>
+                            </>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -599,15 +713,28 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
       {/* FULL-SCREEN IMAGE PREVIEW MODAL */}
       {previewImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="relative max-w-4xl w-full bg-slate-900 rounded-3xl overflow-hidden p-2 border border-slate-800 shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setPreviewImage(null)}
-              className="absolute top-4 right-4 z-10 p-2 bg-black/60 hover:bg-black text-white rounded-full transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <img src={previewImage} alt="Xem ảnh phóng to" className="w-full max-h-[80vh] object-contain rounded-2xl mx-auto" />
+          <div className="relative max-w-4xl w-full bg-slate-900 rounded-3xl overflow-hidden p-3 border border-slate-800 shadow-2xl flex flex-col items-center">
+            <div className="w-full flex items-center justify-between p-2 mb-2 border-b border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  removePhotoByUrl(previewImage);
+                  setPreviewImage(null);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Xóa ảnh này</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <img src={previewImage} alt="Xem ảnh phóng to" className="w-full max-h-[75vh] object-contain rounded-2xl mx-auto" />
           </div>
         </div>
       )}
