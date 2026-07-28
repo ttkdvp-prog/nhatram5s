@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Station, SurveyRecord } from '../types';
 import { QRCodeSVG } from 'qrcode.react';
 import { Save, Camera, CheckCircle, AlertTriangle, Building2, Sparkles, Upload, X, QrCode, Download, Eye, Trash2, ImageOff } from 'lucide-react';
@@ -8,6 +8,33 @@ interface SurveyFormViewProps {
   onSave: (record: Partial<SurveyRecord>) => void;
   initialRecord?: SurveyRecord | null;
 }
+
+const getStoredPhotos = (code: string) => {
+  const key = `nhatram5s_photos_${code}`;
+  const saved = localStorage.getItem(key);
+  if (saved !== null) {
+    try {
+      const parsed = JSON.parse(saved);
+      return {
+        before: Array.isArray(parsed.beforePhotos) ? parsed.beforePhotos : [],
+        after: Array.isArray(parsed.afterPhotos) ? parsed.afterPhotos : []
+      };
+    } catch (e) {}
+  }
+  return {
+    before: [
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=300&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=300&auto=format&fit=crop&q=80'
+    ],
+    after: [
+      'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=300&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?w=300&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1581092795360-fd1ca04f0952?w=300&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1581091215367-9b6c00b3035a?w=300&auto=format&fit=crop&q=80'
+    ]
+  };
+};
 
 export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
   stations,
@@ -40,18 +67,18 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
   const [assignedDept, setAssignedDept] = useState('Bộ phận chuyên môn');
   const [executionLog, setExecutionLog] = useState(initialRecord?.noi_dung_thuc_hien || 'Hoàn thành vệ sinh, phát quang và chấm điểm sau');
 
-  // REAL PHOTO UPLOAD STATE
-  const [beforePhotos, setBeforePhotos] = useState<string[]>([
-    'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=300&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=300&auto=format&fit=crop&q=80'
-  ]);
-  const [afterPhotos, setAfterPhotos] = useState<string[]>([
-    'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=300&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?w=300&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1581092795360-fd1ca04f0952?w=300&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1581091215367-9b6c00b3035a?w=300&auto=format&fit=crop&q=80'
-  ]);
+  // REAL PHOTO UPLOAD STATE - Persistent from localStorage
+  const initialPhotos = getStoredPhotos(initialRecord?.ma_nha_tram || 'TPO-0215');
+  const [beforePhotos, setBeforePhotos] = useState<string[]>(initialRecord?.anh_truoc_list || initialPhotos.before);
+  const [afterPhotos, setAfterPhotos] = useState<string[]>(initialRecord?.anh_sau_list || initialPhotos.after);
+
+  // Sync photos to localStorage on state changes
+  useEffect(() => {
+    localStorage.setItem(
+      `nhatram5s_photos_${selectedStationCode}`,
+      JSON.stringify({ beforePhotos, afterPhotos })
+    );
+  }, [beforePhotos, afterPhotos, selectedStationCode]);
 
   // Track failed image URLs
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
@@ -91,6 +118,9 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
       setSelectedStationName(found.ten_nha_tram);
       setToHaTang(found.to_ha_tang.replace('Tổ Hạ tầng ', ''));
     }
+    const stored = getStoredPhotos(code);
+    setBeforePhotos(stored.before);
+    setAfterPhotos(stored.after);
   };
 
   // Image Upload Handlers
@@ -167,7 +197,9 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
       muc_uu_tien: priority,
       noi_dung_thuc_hien: executionLog,
       anh_truoc_url: beforePhotos[0] || '',
-      anh_sau_url: afterPhotos[0] || ''
+      anh_sau_url: afterPhotos[0] || '',
+      anh_truoc_list: beforePhotos,
+      anh_sau_list: afterPhotos
     });
 
     setSavedSuccess(true);

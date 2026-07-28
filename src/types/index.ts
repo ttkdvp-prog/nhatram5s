@@ -43,6 +43,8 @@ export interface SurveyRecord {
   noi_dung_thuc_hien: string;
   anh_truoc_url?: string;
   anh_sau_url?: string;
+  anh_truoc_list?: string[];
+  anh_sau_list?: string[];
   ngay_hoan_thanh?: string;
   ngay_tai_kiem_tra?: string;
   trang_thai_ho_so: string;
