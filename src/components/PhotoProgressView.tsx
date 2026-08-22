@@ -94,19 +94,47 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
 
   // Lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxPhotos, setLightboxPhotos] = useState<LightboxPhoto[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  // 1. Phân tích chi tiết trạng thái ảnh của từng nhà trạm
-  const stationStatuses: StationPhotoStatus[] = useMemo(() => {
-    return stations.map((st) => {
-      // Tìm hồ sơ khảo sát mới nhất của trạm này
-      const rec = records.find((r) => r.ma_nha_tram === st.ma_nha_tram);
+  // Tra cứu nhanh O(1) Station và Record
+  const stationMap = useMemo(() => {
+    const map = new Map<string, Station>();
+    stations.forEach((s) => map.set(s.ma_nha_tram, s));
+    return map;
+  }, [stations]);
 
-      // Lấy danh sách ảnh từ record hoặc localStorage
+  const recordMap = useMemo(() => {
+    const map = new Map<string, SurveyRecord>();
+    records.forEach((r) => map.set(r.ma_nha_tram, r));
+    return map;
+  }, [records]);
+
+  // 1. Danh sách CHỈ CÁC TRẠM ĐÃ THỰC HIỆN 5S (Có trong records) để app siêu nhẹ, siêu mượt
+  const performed5SStatuses: StationPhotoStatus[] = useMemo(() => {
+    // Chỉ lấy danh sách trạm đã có phiếu khảo sát 5S
+    const surveyedCodes = Array.from(new Set(records.map((r) => r.ma_nha_tram).filter(Boolean)));
+
+    return surveyedCodes.map((code) => {
+      const rec = recordMap.get(code);
+      const st = stationMap.get(code) || {
+        id_nha_tram: code,
+        ma_nha_tram: code,
+        ten_nha_tram: rec?.ten_nha_tram || `Nhà trạm ${code}`,
+        to_ha_tang: rec?.to_ha_tang || 'Chưa phân tổ',
+        dia_ban: '',
+        loai_nha_tram: 'BTS',
+        dia_chi: '',
+        co_may_phat: 'Không',
+        nguoi_phu_trach: rec?.nguoi_khao_sat || '',
+        trang_thai: 'Hoạt động'
+      };
+
       let beforeList: string[] = [];
       let afterList: string[] = [];
 
@@ -124,25 +152,13 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
         }
       }
 
-      // Check thêm localStorage nếu có lưu tạm
-      try {
-        const saved = localStorage.getItem(`nhatram5s_photos_${st.ma_nha_tram}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (beforeList.length === 0 && parsed.before?.length) beforeList = parsed.before;
-          if (afterList.length === 0 && parsed.after?.length) afterList = parsed.after;
-        }
-      } catch (e) {
-        // ignore
-      }
-
       const hasBefore = beforeList.length > 0;
       const hasAfter = afterList.length > 0;
       const isComplete = hasBefore && hasAfter;
       const isPartial = (hasBefore && !hasAfter) || (!hasBefore && hasAfter);
       const isEmpty = !hasBefore && !hasAfter;
 
-      let statusText = 'Chưa gửi ảnh';
+      let statusText = 'Chưa có ảnh';
       let statusColor = 'bg-slate-100 text-slate-600 border-slate-200';
 
       if (isComplete) {
@@ -170,34 +186,34 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
         statusColor
       };
     });
-  }, [stations, records]);
+  }, [records, stationMap, recordMap]);
 
-  // 2. Thống kê theo 9 Tổ Hạ tầng
+  // 2. Thống kê theo 9 Tổ Hạ tầng (Dựa trên tổng trạm và trạm đã thực hiện 5S)
   const orgSummaries: OrgPhotoSummary[] = useMemo(() => {
     const liveOrgs = Array.from(new Set(stations.map((s) => s.to_ha_tang).filter(Boolean)));
     const orgList = liveOrgs.length > 0 ? liveOrgs.sort() : CANONICAL_ORGS;
 
     return orgList.map((org) => {
       const cleanOrg = org.replace('Tổ Hạ tầng ', '').trim();
-      const orgStations = stationStatuses.filter((s) =>
+      const totalInOrg = stations.filter((s) => s.to_ha_tang.includes(cleanOrg)).length;
+      const orgPerformed = performed5SStatuses.filter((s) =>
         s.station.to_ha_tang.includes(cleanOrg)
       );
 
-      const total = orgStations.length;
-      const complete = orgStations.filter((s) => s.isComplete).length;
-      const beforeOnly = orgStations.filter((s) => s.hasBefore && !s.hasAfter).length;
-      const afterOnly = orgStations.filter((s) => !s.hasBefore && s.hasAfter).length;
-      const partial = orgStations.filter((s) => s.isPartial).length;
-      const empty = orgStations.filter((s) => s.isEmpty).length;
-      const hasBefore = orgStations.filter((s) => s.hasBefore).length;
-      const hasAfter = orgStations.filter((s) => s.hasAfter).length;
+      const complete = orgPerformed.filter((s) => s.isComplete).length;
+      const beforeOnly = orgPerformed.filter((s) => s.hasBefore && !s.hasAfter).length;
+      const afterOnly = orgPerformed.filter((s) => !s.hasBefore && s.hasAfter).length;
+      const partial = orgPerformed.filter((s) => s.isPartial).length;
+      const empty = totalInOrg - orgPerformed.length;
+      const hasBefore = orgPerformed.filter((s) => s.hasBefore).length;
+      const hasAfter = orgPerformed.filter((s) => s.hasAfter).length;
 
-      const completionRate = total > 0 ? Math.round((complete / total) * 100) : 0;
-      const anyPhotoRate = total > 0 ? Math.round(((total - empty) / total) * 100) : 0;
+      const completionRate = totalInOrg > 0 ? Math.round((complete / totalInOrg) * 100) : 0;
+      const anyPhotoRate = totalInOrg > 0 ? Math.round((orgPerformed.length / totalInOrg) * 100) : 0;
 
       return {
         orgName: org.startsWith('Tổ Hạ tầng') ? org : `Tổ Hạ tầng ${org}`,
-        totalStations: total,
+        totalStations: totalInOrg,
         completeCount: complete,
         partialCount: partial,
         beforeOnlyCount: beforeOnly,
@@ -209,37 +225,38 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
         anyPhotoRate
       };
     });
-  }, [stations, stationStatuses]);
+  }, [stations, performed5SStatuses]);
 
   // Tổng hợp toàn mạng KPI
   const networkTotals = useMemo(() => {
-    const total = stationStatuses.length;
-    const complete = stationStatuses.filter((s) => s.isComplete).length;
-    const partial = stationStatuses.filter((s) => s.isPartial).length;
-    const empty = stationStatuses.filter((s) => s.isEmpty).length;
-    const hasBefore = stationStatuses.filter((s) => s.hasBefore).length;
-    const hasAfter = stationStatuses.filter((s) => s.hasAfter).length;
+    const total = stations.length;
+    const performedCount = performed5SStatuses.length;
+    const complete = performed5SStatuses.filter((s) => s.isComplete).length;
+    const partial = performed5SStatuses.filter((s) => s.isPartial).length;
+    const beforeOnly = performed5SStatuses.filter((s) => s.hasBefore && !s.hasAfter).length;
+    const afterOnly = performed5SStatuses.filter((s) => !s.hasBefore && s.hasAfter).length;
+    const empty = Math.max(0, total - performedCount);
+    const hasBefore = performed5SStatuses.filter((s) => s.hasBefore).length;
+    const hasAfter = performed5SStatuses.filter((s) => s.hasAfter).length;
     const rate = total > 0 ? Math.round((complete / total) * 100) : 0;
 
     return {
       total,
+      performedCount,
       complete,
       partial,
+      beforeOnly,
+      afterOnly,
       empty,
       hasBefore,
       hasAfter,
       rate
     };
-  }, [stationStatuses]);
+  }, [stations.length, performed5SStatuses]);
 
-  // 3. Lọc danh sách trạm chi tiết theo Filter & Search (Chỉ lấy các trạm đã thực hiện và có ảnh)
+  // 3. Lọc danh sách trạm đã thực hiện 5S theo Filter & Search
   const filteredStationStatuses = useMemo(() => {
-    return stationStatuses.filter((item) => {
-      // Chỉ list các trạm đã thực hiện chụp ảnh (trừ khi cố tình chọn xem trạm chưa chụp)
-      if (selectedStatusFilter === 'all' && item.isEmpty) {
-        return false;
-      }
-
+    return performed5SStatuses.filter((item) => {
       // Lọc theo Tổ
       const cleanFilterOrg = selectedOrgFilter.replace('Tổ Hạ tầng ', '').trim();
       const matchOrg =
@@ -248,13 +265,10 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
 
       // Lọc theo Trạng thái
       let matchStatus = true;
-      if (selectedStatusFilter === 'all') matchStatus = !item.isEmpty;
-      else if (selectedStatusFilter === 'complete') matchStatus = item.isComplete;
+      if (selectedStatusFilter === 'complete') matchStatus = item.isComplete;
       else if (selectedStatusFilter === 'before_only') matchStatus = item.hasBefore && !item.hasAfter;
       else if (selectedStatusFilter === 'after_only') matchStatus = !item.hasBefore && item.hasAfter;
       else if (selectedStatusFilter === 'partial') matchStatus = item.isPartial;
-      else if (selectedStatusFilter === 'empty') matchStatus = item.isEmpty;
-      else if (selectedStatusFilter === 'show_all_network') matchStatus = true;
 
       // Lọc theo Tìm kiếm
       const matchQuery = matchesSearch(
@@ -265,7 +279,14 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
 
       return matchOrg && matchStatus && matchQuery;
     });
-  }, [stationStatuses, selectedOrgFilter, selectedStatusFilter, searchQuery]);
+  }, [performed5SStatuses, selectedOrgFilter, selectedStatusFilter, searchQuery]);
+
+  // Phân trang danh sách để hiển thị siêu nhanh
+  const totalPages = Math.ceil(filteredStationStatuses.length / pageSize) || 1;
+  const paginatedStationStatuses = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredStationStatuses.slice(start, start + pageSize);
+  }, [filteredStationStatuses, currentPage, pageSize]);
 
   const openLightboxForStation = (item: StationPhotoStatus, initialType: 'before' | 'after' = 'before') => {
     const list: LightboxPhoto[] = [];
@@ -372,7 +393,7 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-black text-amber-600">
-              {stationStatuses.filter(s => s.hasBefore && !s.hasAfter).length}
+              {networkTotals.beforeOnly}
             </span>
             <span className="text-xs font-bold text-slate-400">trạm chờ ảnh Sau</span>
           </div>
@@ -391,7 +412,7 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-black text-blue-600">
-              {stationStatuses.filter(s => !s.hasBefore && s.hasAfter).length}
+              {networkTotals.afterOnly}
             </span>
             <span className="text-xs font-bold text-slate-400">trạm thiếu ảnh Trước</span>
           </div>
@@ -523,8 +544,8 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
                 <td className="py-3 px-3 uppercase tracking-wider">Tổng cộng toàn mạng</td>
                 <td className="py-3 px-2 text-center text-sm">{networkTotals.total}</td>
                 <td className="py-3 px-2 text-center text-sm text-emerald-700 bg-emerald-100/50">{networkTotals.complete}</td>
-                <td className="py-3 px-2 text-center text-sm text-amber-700">{stationStatuses.filter(s => s.hasBefore && !s.hasAfter).length}</td>
-                <td className="py-3 px-2 text-center text-sm text-blue-700">{stationStatuses.filter(s => !s.hasBefore && s.hasAfter).length}</td>
+                <td className="py-3 px-2 text-center text-sm text-amber-700">{networkTotals.beforeOnly}</td>
+                <td className="py-3 px-2 text-center text-sm text-blue-700">{networkTotals.afterOnly}</td>
                 <td className="py-3 px-2 text-center text-sm text-rose-700 bg-rose-100/30">{networkTotals.empty}</td>
                 <td className="py-3 px-3 text-center text-sm text-emerald-800">{networkTotals.rate}% Đủ ảnh</td>
                 <td className="py-3 px-3 text-center">
@@ -563,13 +584,16 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
             {/* Filter Tổ */}
             <select
               value={selectedOrgFilter}
-              onChange={(e) => setSelectedOrgFilter(e.target.value)}
+              onChange={(e) => {
+                setSelectedOrgFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-vnpt-500 cursor-pointer"
             >
               <option value="Tất cả">Tất cả các Tổ ({orgSummaries.length})</option>
               {orgSummaries.map((o) => (
                 <option key={o.orgName} value={o.orgName}>
-                  {o.orgName} ({o.totalStations} trạm)
+                  {o.orgName} ({o.completeCount + o.partialCount} trạm thực hiện)
                 </option>
               ))}
             </select>
@@ -577,14 +601,17 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
             {/* Filter Status */}
             <select
               value={selectedStatusFilter}
-              onChange={(e) => setSelectedStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setSelectedStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-vnpt-500 cursor-pointer"
             >
-              <option value="all">📷 Tất cả trạm đã gửi ảnh ({stationStatuses.filter(s => !s.isEmpty).length})</option>
+              <option value="all">📷 Tất cả trạm đã thực hiện 5S ({performed5SStatuses.length})</option>
               <option value="complete">✅ Đủ 2 ảnh Trước & Sau ({networkTotals.complete})</option>
-              <option value="before_only">⏳ Chỉ có ảnh Trước ({stationStatuses.filter(s => s.hasBefore && !s.hasAfter).length})</option>
-              <option value="after_only">📸 Chỉ có ảnh Sau ({stationStatuses.filter(s => !s.hasBefore && s.hasAfter).length})</option>
-              <option value="show_all_network">🌐 Xem toàn bộ trạm toàn mạng ({networkTotals.total})</option>
+              <option value="before_only">⏳ Chỉ có ảnh Trước ({networkTotals.beforeOnly})</option>
+              <option value="after_only">📸 Chỉ có ảnh Sau ({networkTotals.afterOnly})</option>
+              <option value="partial">⚠️ Thiếu 1 trong 2 ảnh ({networkTotals.partial})</option>
             </select>
 
             {/* View Mode Toggle */}
@@ -619,7 +646,10 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Tìm theo Mã nhà trạm, Tên trạm, NV quản lý, hoặc gõ viết tắt (vd: tpo, 0215, nva)..."
             className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-vnpt-500"
           />
@@ -642,11 +672,11 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {filteredStationStatuses.length > 0 ? (
-                  filteredStationStatuses.map((item, idx) => (
+                {paginatedStationStatuses.length > 0 ? (
+                  paginatedStationStatuses.map((item, idx) => (
                     <tr key={item.station.ma_nha_tram} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-3 text-center font-bold text-slate-400">
-                        {idx + 1}
+                        {(currentPage - 1) * pageSize + idx + 1}
                       </td>
                       <td className="py-3 px-3 font-semibold text-slate-700 whitespace-nowrap">
                         {item.station.to_ha_tang}
@@ -678,6 +708,8 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
                             <img
                               src={item.beforePhotos[0]}
                               alt="Ảnh trước"
+                              loading="lazy"
+                              decoding="async"
                               className="w-10 h-10 object-cover rounded-md border border-slate-200"
                             />
                             <div className="text-left pr-1">
@@ -702,6 +734,8 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
                             <img
                               src={item.afterPhotos[0]}
                               alt="Ảnh sau"
+                              loading="lazy"
+                              decoding="async"
                               className="w-10 h-10 object-cover rounded-md border border-slate-200"
                             />
                             <div className="text-left pr-1">
@@ -741,7 +775,7 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
         ) : (
           /* Grid View */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredStationStatuses.map((item) => (
+            {paginatedStationStatuses.map((item) => (
               <div
                 key={item.station.ma_nha_tram}
                 className="bg-slate-50/70 rounded-2xl p-4 border border-slate-200 hover:border-vnpt-300 transition-all space-y-3"
@@ -774,6 +808,8 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
                       <img
                         src={item.beforePhotos[0]}
                         alt="Trước"
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-24 object-cover rounded-lg"
                       />
                     ) : (
@@ -796,6 +832,8 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
                       <img
                         src={item.afterPhotos[0]}
                         alt="Sau"
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-24 object-cover rounded-lg"
                       />
                     ) : (
@@ -820,6 +858,43 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Thanh phân trang Pagination Bar */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
+            <div className="text-slate-500 font-semibold">
+              Hiển thị <strong className="text-slate-800">{(currentPage - 1) * pageSize + 1}</strong> -{' '}
+              <strong className="text-slate-800">
+                {Math.min(currentPage * pageSize, filteredStationStatuses.length)}
+              </strong>{' '}
+              trong tổng số <strong className="text-vnpt-700">{filteredStationStatuses.length}</strong> trạm đã thực hiện 5S
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs"
+              >
+                Trang trước
+              </button>
+
+              <span className="px-3 py-1.5 bg-slate-50 rounded-lg font-bold text-slate-700 border border-slate-200">
+                Trang {currentPage} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs"
+              >
+                Trang sau
+              </button>
+            </div>
           </div>
         )}
       </div>
