@@ -379,7 +379,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
       }
     }
 
-    setUploadStatusMsg(`Đã tải thành công ${completed}/${totalFiles} ảnh Google Drive dạng link LH3!`);
+    setUploadStatusMsg(`Đã tải thành công ${completed}/${totalFiles} ảnh lên Google Drive!`);
     setTimeout(() => {
       setIsUploading(false);
       setUploadStatusMsg('');
@@ -967,10 +967,10 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                                 className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
                                 onClick={() => openBeforeLightbox(idx)}
                               />
-                              {/* Drive LH3 Badge */}
+                              {/* Drive Badge */}
                               {isDrive && (
                                 <span className="absolute top-1 left-1 px-1.5 py-0.5 bg-slate-900/75 text-[9px] font-bold text-sky-300 rounded-md backdrop-blur-xs">
-                                  LH3
+                                  Drive
                                 </span>
                               )}
                               {/* Delete Button */}
@@ -1048,10 +1048,10 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                                 className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
                                 onClick={() => openAfterLightbox(idx)}
                               />
-                              {/* Drive LH3 Badge */}
+                              {/* Drive Badge */}
                               {isDrive && (
                                 <span className="absolute top-1 left-1 px-1.5 py-0.5 bg-slate-900/75 text-[9px] font-bold text-emerald-300 rounded-md backdrop-blur-xs">
-                                  LH3
+                                  Drive
                                 </span>
                               )}
                               {/* Delete Button */}
@@ -1162,7 +1162,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
 
             <div className="flex justify-between items-center text-xs py-1.5 border-b border-slate-100">
               <span className="text-slate-500">Ảnh minh chứng Google Drive</span>
-              <span className="font-bold text-emerald-600">Chuẩn LH3 ({beforePhotos.length + afterPhotos.length})</span>
+              <span className="font-bold text-emerald-600">Đã nạp ({beforePhotos.length + afterPhotos.length} ảnh)</span>
             </div>
 
             <div className="flex justify-between items-center text-xs py-1.5">
@@ -1237,7 +1237,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              Dán bất kỳ link Google Drive nào (link chia sẻ, link xem trước, link tải trực tiếp hoặc file ID). Hệ thống sẽ tự động ghép thành link <strong>LH3 Google CDN</strong> để hiển thị trực tiếp và lưu vào Google Sheet.
+              Dán bất kỳ link Google Drive nào (link chia sẻ, link xem trước, link tải trực tiếp hoặc file ID). Hệ thống sẽ tự động đồng bộ để hiển thị trực tiếp và lưu vào Google Sheet.
             </p>
 
             <div className="space-y-3">
@@ -1284,7 +1284,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
 
               {pastedUrlInput.trim() && (
                 <div className="bg-sky-50 border border-sky-200 p-3 rounded-xl text-xs space-y-1">
-                  <div className="font-bold text-sky-900">Link LH3 sau khi chuyển đổi:</div>
+                  <div className="font-bold text-sky-900">Link ảnh sau khi chuyển đổi:</div>
                   <div className="font-mono text-[11px] text-sky-700 break-all">
                     {toLh3Url(pastedUrlInput.trim())}
                   </div>

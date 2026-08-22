@@ -55,7 +55,7 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-800 tracking-tight">Hồ sơ nhà trạm 5S</h2>
-          <p className="text-xs text-slate-500 mt-1">Danh sách chi tiết hồ sơ khảo sát, đánh giá và lịch sử chấm điểm 5S kèm ảnh LH3 Google Drive</p>
+          <p className="text-xs text-slate-500 mt-1">Danh sách chi tiết hồ sơ khảo sát, đánh giá và lịch sử chấm điểm 5S kèm ảnh chụp thực tế</p>
         </div>
 
         <button
@@ -108,7 +108,7 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
                 <th className="py-3.5 px-6">Mã trạm</th>
                 <th className="py-3.5 px-6">Tên nhà trạm</th>
                 <th className="py-3.5 px-6">Tổ Hạ tầng</th>
-                <th className="py-3.5 px-6">Ảnh LH3</th>
+                <th className="py-3.5 px-6">Ảnh khảo sát</th>
                 <th className="py-3.5 px-6">Điểm trước</th>
                 <th className="py-3.5 px-6">Điểm sau</th>
                 <th className="py-3.5 px-6">Xếp loại</th>
@@ -217,7 +217,7 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
             <div className="space-y-4 pt-2 border-t border-slate-100">
               <h4 className="font-bold text-sm text-slate-800 flex items-center gap-2">
                 <Image className="w-4 h-4 text-vnpt-500" />
-                <span>Ảnh minh chứng 5S (Định dạng LH3 Google Drive)</span>
+                <span>Ảnh minh chứng 5S (Google Drive)</span>
               </h4>
 
               {/* Before Photos */}

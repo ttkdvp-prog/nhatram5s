@@ -13,7 +13,7 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({ recomm
     <div className="space-y-6 pb-10 animate-in fade-in duration-300">
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
         <h2 className="text-xl font-bold text-slate-800 tracking-tight">Quản lý Kiến nghị & Nguy cơ phát hiện</h2>
-        <p className="text-xs text-slate-500 mt-1">Theo dõi các nguy cơ an toàn lao động, PCCC và đề xuất cải thiện tại các nhà trạm kèm ảnh minh chứng LH3</p>
+        <p className="text-xs text-slate-500 mt-1">Theo dõi các nguy cơ an toàn lao động, PCCC và đề xuất cải thiện tại các nhà trạm kèm ảnh minh chứng</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

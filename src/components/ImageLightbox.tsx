@@ -185,10 +185,10 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           <button
             onClick={handleCopyLink}
             className="px-3 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl text-xs font-medium text-slate-200 hover:text-white transition-colors flex items-center gap-1.5 border border-white/10"
-            title="Sao chép link LH3"
+            title="Sao chép link ảnh"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span className="hidden md:inline">{copied ? 'Đã chép link' : 'Copy link LH3'}</span>
+            <span className="hidden md:inline">{copied ? 'Đã chép link' : 'Copy link ảnh'}</span>
           </button>
 
           {fileId && (

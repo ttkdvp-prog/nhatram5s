@@ -84,7 +84,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-2xl p-3 text-xs flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Toàn bộ dữ liệu, tải ảnh Google Drive và ghép link <strong>LH3 CDN</strong> đều được tự động xử lý trọn gói bởi Code.gs!</span>
+            <span>Toàn bộ dữ liệu và tải ảnh Google Drive đều được tự động xử lý trọn gói bởi Code.gs!</span>
           </div>
 
           <div>
