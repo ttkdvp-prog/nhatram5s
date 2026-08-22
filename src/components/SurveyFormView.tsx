@@ -21,7 +21,7 @@ import {
   Loader2,
   Check
 } from 'lucide-react';
-import { toLh3Url, extractDriveFileId, isDriveOrLh3Url } from '../utils/imageHelper';
+import { toLh3Url, extractDriveFileId, isDriveOrLh3Url, compressImageFile, safeLocalStorageSet } from '../utils/imageHelper';
 import { uploadImageToGoogleDrive } from '../services/api';
 import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
 
@@ -107,11 +107,13 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
   const [pasteType, setPasteType] = useState<'Trước' | 'Sau'>('Trước');
   const [pastedUrlInput, setPastedUrlInput] = useState('');
 
-  // Sync photos to localStorage on state changes
+  // Sync photos to localStorage on state changes (Chỉ lưu link URL hợp lệ, không lưu raw base64)
   useEffect(() => {
-    localStorage.setItem(
+    const safeBefore = beforePhotos.filter(u => !u.startsWith('data:image/'));
+    const safeAfter = afterPhotos.filter(u => !u.startsWith('data:image/'));
+    safeLocalStorageSet(
       `nhatram5s_photos_${selectedStationCode}`,
-      JSON.stringify({ beforePhotos, afterPhotos })
+      JSON.stringify({ beforePhotos: safeBefore, afterPhotos: safeAfter })
     );
   }, [beforePhotos, afterPhotos, selectedStationCode]);
 
@@ -180,7 +182,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
     setAfterPhotos(stored.after.map(toLh3Url));
   };
 
-  // Process File Upload to Google Drive and convert to LH3 Link
+  // Process File Upload to Google Drive and convert to LH3 Link (Tự động nén ảnh nhanh 30x)
   const processUpload = async (files: FileList | null, photoType: 'Trước' | 'Sau') => {
     if (!files || files.length === 0) return;
 
@@ -190,20 +192,16 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      setUploadStatusMsg(`Đang tải ảnh ${i + 1}/${totalFiles} lên Google Drive & tạo link LH3...`);
+      setUploadStatusMsg(`Đang nén & tải ảnh ${i + 1}/${totalFiles} lên Google Drive...`);
 
       try {
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+        // Nén ảnh thông minh trước khi upload giúp giảm từ 10MB xuống ~200KB
+        const compressedBase64 = await compressImageFile(file, 1600, 1600, 0.8);
 
         const uploadResult = await uploadImageToGoogleDrive({
-          base64Data: base64,
+          base64Data: compressedBase64,
           fileName: `5S_${selectedStationCode}_${photoType}_${Date.now()}_${i + 1}.jpg`,
-          mimeType: file.type || 'image/jpeg',
+          mimeType: 'image/jpeg',
           stationCode: selectedStationCode,
           stationName: selectedStationName,
           photoType: photoType

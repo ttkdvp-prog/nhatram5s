@@ -5,14 +5,6 @@
 
 /**
  * Trích xuất Google Drive File ID từ nhiều định dạng URL khác nhau hoặc raw ID.
- * Hỗ trợ các dạng link:
- * - https://drive.google.com/file/d/FILE_ID/view?usp=sharing
- * - https://drive.google.com/file/d/FILE_ID/preview
- * - https://drive.google.com/uc?id=FILE_ID
- * - https://drive.google.com/open?id=FILE_ID
- * - https://lh3.googleusercontent.com/d/FILE_ID
- * - https://lh3.googleusercontent.com/u/0/d/FILE_ID
- * - Raw ID: 1a2B3c4D5E... (chuỗi ký tự 25-45 ký tự)
  */
 export const extractDriveFileId = (input: string): string | null => {
   if (!input || typeof input !== 'string') return null;
@@ -44,9 +36,6 @@ export const extractDriveFileId = (input: string): string | null => {
 /**
  * Chuyển đổi bất kỳ link Google Drive hoặc file ID thành link LH3 CDN trực tiếp:
  * https://lh3.googleusercontent.com/d/{FILE_ID}
- * 
- * @param input Link Drive, link LH3 hoặc ID file
- * @param size Kích thước ảnh tối đa (tùy chọn, vd: 1200 để lấy ảnh nét hoặc 0 để lấy full gốc)
  */
 export const toLh3Url = (input: string, size?: number): string => {
   if (!input || typeof input !== 'string') return '';
@@ -81,7 +70,6 @@ export const isDriveOrLh3Url = (input: string): boolean => {
 
 /**
  * Ghép danh sách URL ảnh thành một chuỗi duy nhất để lưu trữ vào ô Google Sheet
- * Hỗ trợ phân cách bằng dấu phẩy và dấu cách hoặc xuống dòng
  */
 export const formatSheetPhotoUrls = (urls: string[]): string => {
   if (!Array.isArray(urls) || urls.length === 0) return '';
@@ -106,4 +94,77 @@ export const parseSheetPhotoUrls = (cellValue?: string | string[]): string[] => 
   // Tách theo dấu phẩy, chấm phẩy hoặc dòng mới
   const parts = trimmed.split(/[\n,;]+/).map(p => p.trim()).filter(Boolean);
   return parts.map(url => toLh3Url(url)).filter(Boolean);
+};
+
+/**
+ * Nén ảnh trước khi tải lên Google Drive để tránh lỗi quá tải dung lượng và tăng tốc tải 30x
+ */
+export const compressImageFile = async (
+  file: File,
+  maxWidth = 1600,
+  maxHeight = 1600,
+  quality = 0.8
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (readerEvent) => {
+      const img = new window.Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(readerEvent.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => resolve(readerEvent.target?.result as string);
+      img.src = readerEvent.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+/**
+ * Lưu trữ an toàn vào LocalStorage, chống lỗi DOMException: QuotaExceededError
+ */
+export const safeLocalStorageSet = (key: string, value: string): void => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    console.warn('LocalStorage Quota exceeded, clearing cached photos...', e);
+    try {
+      // Xóa các key cache ảnh tạm thời nếu bị đầy bộ nhớ trình duyệt
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('nhatram5s_photos_')) {
+          localStorage.removeItem(k);
+        }
+      }
+      localStorage.setItem(key, value);
+    } catch (innerErr) {
+      console.error('Cannot save to localStorage:', innerErr);
+    }
+  }
 };

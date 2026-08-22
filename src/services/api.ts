@@ -1,6 +1,6 @@
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary } from '../types';
 import { INITIAL_KPIS, INITIAL_ORG_SCORES, INITIAL_STATIONS, INITIAL_RECORDS, INITIAL_RECOMMENDATIONS } from '../data/initialData';
-import { toLh3Url, parseSheetPhotoUrls } from '../utils/imageHelper';
+import { toLh3Url, parseSheetPhotoUrls, safeLocalStorageSet } from '../utils/imageHelper';
 
 const LOCAL_STORAGE_KEY_URL = 'nhatram5s_appscript_url';
 const LOCAL_STORAGE_KEY_STATIONS = 'nhatram5s_stations_data';
@@ -13,22 +13,27 @@ export const DEFAULT_APPS_SCRIPT_URL =
   'https://script.google.com/macros/s/AKfycbyJd-UnQaqPj3xhMx-FVybu5deYI0VXtqgpQPiWcytJPxcw81Goy7raBlIGLZ3BSmdP_A/exec';
 
 export const getAppScriptUrl = (): string => {
-  return localStorage.getItem(LOCAL_STORAGE_KEY_URL) || DEFAULT_APPS_SCRIPT_URL;
+  const stored = localStorage.getItem(LOCAL_STORAGE_KEY_URL);
+  // Nếu stored là rỗng hoặc link cũ bị lỗi, tự động trỏ về DEFAULT_APPS_SCRIPT_URL chuẩn
+  if (!stored || stored.includes('AKfycbyy4cCz3jk2IB1GzkbwPH5pxnMMLEQc5XW4TXvRy0KZWzSm3Vh6xKMwa65O1vby5HxqXQ')) {
+    return DEFAULT_APPS_SCRIPT_URL;
+  }
+  return stored.trim();
 };
 
 export const setAppScriptUrl = (url: string) => {
-  localStorage.setItem(LOCAL_STORAGE_KEY_URL, url.trim());
+  safeLocalStorageSet(LOCAL_STORAGE_KEY_URL, url.trim());
 };
 
 export const loadInitialState = () => {
   if (!localStorage.getItem(LOCAL_STORAGE_KEY_STATIONS)) {
-    localStorage.setItem(LOCAL_STORAGE_KEY_STATIONS, JSON.stringify(INITIAL_STATIONS));
+    safeLocalStorageSet(LOCAL_STORAGE_KEY_STATIONS, JSON.stringify(INITIAL_STATIONS));
   }
   if (!localStorage.getItem(LOCAL_STORAGE_KEY_RECORDS)) {
-    localStorage.setItem(LOCAL_STORAGE_KEY_RECORDS, JSON.stringify(INITIAL_RECORDS));
+    safeLocalStorageSet(LOCAL_STORAGE_KEY_RECORDS, JSON.stringify(INITIAL_RECORDS));
   }
   if (!localStorage.getItem(LOCAL_STORAGE_KEY_RECOMMENDATIONS)) {
-    localStorage.setItem(LOCAL_STORAGE_KEY_RECOMMENDATIONS, JSON.stringify(INITIAL_RECOMMENDATIONS));
+    safeLocalStorageSet(LOCAL_STORAGE_KEY_RECOMMENDATIONS, JSON.stringify(INITIAL_RECOMMENDATIONS));
   }
 };
 
@@ -64,7 +69,8 @@ export const uploadImageToGoogleDrive = async (params: UploadImageParams): Promi
         body: JSON.stringify({
           action: 'uploadImage',
           data: params
-        })
+        }),
+        redirect: 'follow'
       });
 
       if (response.ok) {
@@ -101,7 +107,10 @@ export const fetchDashboardData = async () => {
 
   if (url) {
     try {
-      const response = await fetch(`${url}?action=getAll`);
+      const response = await fetch(`${url}?action=getAll`, {
+        method: 'GET',
+        redirect: 'follow'
+      });
       const json = await response.json();
       if (json.status === 'success' && json.data) {
         const rawRecords: SurveyRecord[] = json.data.records || [];
@@ -117,15 +126,15 @@ export const fetchDashboardData = async () => {
           };
         });
 
-        // Cập nhật bộ đệm LocalStorage
+        // Cập nhật bộ đệm an toàn
         if (recordsWithPhotos.length > 0) {
-          localStorage.setItem(LOCAL_STORAGE_KEY_RECORDS, JSON.stringify(recordsWithPhotos));
+          safeLocalStorageSet(LOCAL_STORAGE_KEY_RECORDS, JSON.stringify(recordsWithPhotos));
         }
         if (json.data.stations?.length > 0) {
-          localStorage.setItem(LOCAL_STORAGE_KEY_STATIONS, JSON.stringify(json.data.stations));
+          safeLocalStorageSet(LOCAL_STORAGE_KEY_STATIONS, JSON.stringify(json.data.stations));
         }
         if (json.data.recommendations?.length > 0) {
-          localStorage.setItem(LOCAL_STORAGE_KEY_RECOMMENDATIONS, JSON.stringify(json.data.recommendations));
+          safeLocalStorageSet(LOCAL_STORAGE_KEY_RECOMMENDATIONS, JSON.stringify(json.data.recommendations));
         }
 
         return {
@@ -269,7 +278,7 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
   };
 
   const updatedRecords = [newRecord, ...currentRecords];
-  localStorage.setItem(LOCAL_STORAGE_KEY_RECORDS, JSON.stringify(updatedRecords));
+  safeLocalStorageSet(LOCAL_STORAGE_KEY_RECORDS, JSON.stringify(updatedRecords));
 
   if (record.noi_dung_kien_nghi) {
     const newRec: Recommendation = {
@@ -292,7 +301,7 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
       anh_truoc_url: primaryBeforeUrl,
       anh_sau_url: primaryAfterUrl
     };
-    localStorage.setItem(LOCAL_STORAGE_KEY_RECOMMENDATIONS, JSON.stringify([newRec, ...currentRecs]));
+    safeLocalStorageSet(LOCAL_STORAGE_KEY_RECOMMENDATIONS, JSON.stringify([newRec, ...currentRecs]));
   }
 
   // Gửi trực tiếp tới Google Apps Script Web App (Code.gs)
@@ -301,7 +310,8 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
       const resp = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'saveSurvey', data: newRecord })
+        body: JSON.stringify({ action: 'saveSurvey', data: newRecord }),
+        redirect: 'follow'
       });
       const resJson = await resp.json();
       console.log('Survey saved to Google Sheet successfully:', resJson);
