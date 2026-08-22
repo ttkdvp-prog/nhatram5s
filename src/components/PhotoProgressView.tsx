@@ -232,9 +232,14 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
     };
   }, [stationStatuses]);
 
-  // 3. Lọc danh sách trạm chi tiết theo Filter & Search
+  // 3. Lọc danh sách trạm chi tiết theo Filter & Search (Chỉ lấy các trạm đã thực hiện và có ảnh)
   const filteredStationStatuses = useMemo(() => {
     return stationStatuses.filter((item) => {
+      // Chỉ list các trạm đã thực hiện chụp ảnh (trừ khi cố tình chọn xem trạm chưa chụp)
+      if (selectedStatusFilter === 'all' && item.isEmpty) {
+        return false;
+      }
+
       // Lọc theo Tổ
       const cleanFilterOrg = selectedOrgFilter.replace('Tổ Hạ tầng ', '').trim();
       const matchOrg =
@@ -243,12 +248,13 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
 
       // Lọc theo Trạng thái
       let matchStatus = true;
-      if (selectedStatusFilter === 'complete') matchStatus = item.isComplete;
+      if (selectedStatusFilter === 'all') matchStatus = !item.isEmpty;
+      else if (selectedStatusFilter === 'complete') matchStatus = item.isComplete;
       else if (selectedStatusFilter === 'before_only') matchStatus = item.hasBefore && !item.hasAfter;
       else if (selectedStatusFilter === 'after_only') matchStatus = !item.hasBefore && item.hasAfter;
       else if (selectedStatusFilter === 'partial') matchStatus = item.isPartial;
       else if (selectedStatusFilter === 'empty') matchStatus = item.isEmpty;
-      else if (selectedStatusFilter === 'has_any') matchStatus = !item.isEmpty;
+      else if (selectedStatusFilter === 'show_all_network') matchStatus = true;
 
       // Lọc theo Tìm kiếm
       const matchQuery = matchesSearch(
@@ -543,11 +549,14 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
           <div>
             <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
               <Layers className="w-5 h-5 text-vnpt-500" />
-              <span>Danh sách trạm chi tiết</span>
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+              <span>Danh sách trạm đã thực hiện & chụp ảnh 5S</span>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
                 {filteredStationStatuses.length} trạm
               </span>
             </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Chỉ danh sách các nhà trạm đã triển khai gửi ảnh chụp Trước hoặc Sau
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -571,12 +580,11 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
               onChange={(e) => setSelectedStatusFilter(e.target.value)}
               className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-vnpt-500 cursor-pointer"
             >
-              <option value="all">Tất cả trạng thái ảnh</option>
-              <option value="complete">✅ Đủ 2 ảnh Trước & Sau</option>
-              <option value="before_only">⏳ Chỉ có ảnh Trước</option>
-              <option value="after_only">📸 Chỉ có ảnh Sau</option>
-              <option value="partial">⚠️ Thiếu 1 trong 2 ảnh</option>
-              <option value="empty">❌ Chưa gửi ảnh nào</option>
+              <option value="all">📷 Tất cả trạm đã gửi ảnh ({stationStatuses.filter(s => !s.isEmpty).length})</option>
+              <option value="complete">✅ Đủ 2 ảnh Trước & Sau ({networkTotals.complete})</option>
+              <option value="before_only">⏳ Chỉ có ảnh Trước ({stationStatuses.filter(s => s.hasBefore && !s.hasAfter).length})</option>
+              <option value="after_only">📸 Chỉ có ảnh Sau ({stationStatuses.filter(s => !s.hasBefore && s.hasAfter).length})</option>
+              <option value="show_all_network">🌐 Xem toàn bộ trạm toàn mạng ({networkTotals.total})</option>
             </select>
 
             {/* View Mode Toggle */}
