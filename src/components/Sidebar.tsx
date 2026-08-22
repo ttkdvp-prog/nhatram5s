@@ -1,7 +1,7 @@
 import React from 'react';
-import { LayoutDashboard, ClipboardCheck, FolderKanban, AlertTriangle, RefreshCw, BarChart3, Radio } from 'lucide-react';
+import { LayoutDashboard, ClipboardCheck, FolderKanban, Camera, AlertTriangle, RefreshCw, BarChart3, Radio } from 'lucide-react';
 
-export type ActiveTab = 'overview' | 'survey' | 'records' | 'recommendations' | 'reinspection' | 'reports';
+export type ActiveTab = 'overview' | 'survey' | 'records' | 'photos' | 'recommendations' | 'reinspection' | 'reports';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -20,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'overview' as ActiveTab, label: 'Tổng quan', icon: LayoutDashboard },
     { id: 'survey' as ActiveTab, label: 'Khảo sát 5S', icon: ClipboardCheck },
     { id: 'records' as ActiveTab, label: 'Hồ sơ nhà trạm', icon: FolderKanban },
+    { id: 'photos' as ActiveTab, label: 'Thống kê ảnh 5S', icon: Camera },
     { id: 'recommendations' as ActiveTab, label: 'Kiến nghị', icon: AlertTriangle },
     { id: 'reinspection' as ActiveTab, label: 'Tái kiểm tra', icon: RefreshCw },
     { id: 'reports' as ActiveTab, label: 'Báo cáo', icon: BarChart3 },

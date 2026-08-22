@@ -3,6 +3,7 @@ import { Sidebar, ActiveTab } from './Sidebar';
 import { DashboardView } from './DashboardView';
 import { SurveyFormView } from './SurveyFormView';
 import { StationRecordsView } from './StationRecordsView';
+import { PhotoProgressView } from './PhotoProgressView';
 import { RecommendationsView } from './RecommendationsView';
 import { ReportsView } from './ReportsView';
 import { fetchDashboardData, saveSurveyForm } from '../services/api';
@@ -110,6 +111,14 @@ export const Layout: React.FC = () => {
 
           {activeTab === 'records' && (
             <StationRecordsView stations={stations} records={records} />
+          )}
+
+          {activeTab === 'photos' && (
+            <PhotoProgressView
+              stations={stations}
+              records={records}
+              onNavigateToSurvey={navigateToSurvey}
+            />
           )}
 
           {activeTab === 'recommendations' && (
