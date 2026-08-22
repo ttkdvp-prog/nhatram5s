@@ -28,7 +28,8 @@ export const INITIAL_STATIONS: Station[] = [
     dia_chi: 'Số 12 Đường Hùng Vương, TP Việt Trì, Phú Thọ',
     co_may_phat: 'Có',
     nguoi_phu_trach: 'Nguyễn Văn A',
-    email_phu_trach: 'viettri.5s@vnpt.vn',
+    ma_nv: 'NV_PTO_012',
+    he_so_quy_doi: 1.2,
     trang_thai: 'Đang khai thác',
     ghi_chu: 'Trạm trọng điểm khu vực trung tâm'
   },
@@ -42,7 +43,8 @@ export const INITIAL_STATIONS: Station[] = [
     dia_chi: 'Đường Nguyễn Tất Thành, Vĩnh Yên, Phú Thọ',
     co_may_phat: 'Không',
     nguoi_phu_trach: 'Lê Văn C',
-    email_phu_trach: 'vinhyen.5s@vnpt.vn',
+    ma_nv: 'NV_PTO_045',
+    he_so_quy_doi: 1.0,
     trang_thai: 'Đang khai thác'
   },
   {
@@ -55,7 +57,8 @@ export const INITIAL_STATIONS: Station[] = [
     dia_chi: 'Khu vực Đồi Cao, Hòa Bình',
     co_may_phat: 'Có',
     nguoi_phu_trach: 'Phạm Văn D',
-    email_phu_trach: 'hoabinh.5s@vnpt.vn',
+    ma_nv: 'NV_PTO_089',
+    he_so_quy_doi: 1.5,
     trang_thai: 'Đang khai thác'
   },
   {
@@ -68,7 +71,8 @@ export const INITIAL_STATIONS: Station[] = [
     dia_chi: 'Phường Phong Châu, TX Phú Thọ',
     co_may_phat: 'Có',
     nguoi_phu_trach: 'Trần Văn B',
-    email_phu_trach: 'phutho.5s@vnpt.vn',
+    ma_nv: 'NV_PTO_033',
+    he_so_quy_doi: 1.0,
     trang_thai: 'Đang khai thác'
   },
   {
@@ -81,7 +85,8 @@ export const INITIAL_STATIONS: Station[] = [
     dia_chi: 'Thị trấn Lương Sơn, Phú Thọ',
     co_may_phat: 'Có',
     nguoi_phu_trach: 'Hoàng Văn E',
-    email_phu_trach: 'luongson.5s@vnpt.vn',
+    ma_nv: 'NV_PTO_071',
+    he_so_quy_doi: 1.2,
     trang_thai: 'Đang khai thác'
   }
 ];

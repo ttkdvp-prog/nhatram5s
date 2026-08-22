@@ -8,7 +8,9 @@ export interface Station {
   dia_chi: string;
   co_may_phat: string;
   nguoi_phu_trach: string;
-  email_phu_trach: string;
+  ma_nv?: string;
+  email_phu_trach?: string;
+  he_so_quy_doi?: number;
   trang_thai: string;
   ghi_chu?: string;
 }

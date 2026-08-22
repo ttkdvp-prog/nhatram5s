@@ -254,6 +254,18 @@ function getSheetData(sheetName) {
     if (obj.url_drive) obj.url_drive = toLh3Url(obj.url_drive);
     if (obj.anh_url) obj.anh_url = toLh3Url(obj.anh_url);
 
+    // Chuẩn hóa trường ma_nv và he_so_quy_doi cho DM_NHA_TRAM
+    if (sheetName === SHEET_NAMES.STATIONS) {
+      if (!obj.ma_nv && obj.email_phu_trach) {
+        obj.ma_nv = obj.email_phu_trach;
+      }
+      if (obj.he_so_quy_doi === undefined || obj.he_so_quy_doi === '') {
+        obj.he_so_quy_doi = 1.0;
+      } else {
+        obj.he_so_quy_doi = Number(obj.he_so_quy_doi) || 1.0;
+      }
+    }
+
     return obj;
   });
 }
@@ -458,7 +470,8 @@ function handleAddStation(data) {
     data.dia_chi || '',
     data.co_may_phat || 'Không',
     data.nguoi_phu_trach || '',
-    data.email_phu_trach || '',
+    data.ma_nv || data.email_phu_trach || '',
+    Number(data.he_so_quy_doi) || 1.0,
     'Đang khai thác',
     data.ghi_chu || ''
   ]);
@@ -499,13 +512,67 @@ function getStatsData() {
 }
 
 /**
+ * Tự động cập nhật tiêu đề sheet DM_NHA_TRAM nếu đang dùng định dạng cũ
+ */
+function upgradeSheetHeaders() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(SHEET_NAMES.STATIONS);
+    if (sheet && sheet.getLastRow() >= 1) {
+      var lastCol = sheet.getLastColumn();
+      var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+      
+      var emailIdx = -1;
+      for (var i = 0; i < headers.length; i++) {
+        var h = String(headers[i]).toLowerCase().trim();
+        if (h === 'email_phu_trach' || h === 'email') {
+          emailIdx = i;
+          break;
+        }
+      }
+      
+      // Đổi tên cột email -> ma_nv
+      if (emailIdx !== -1) {
+        sheet.getRange(1, emailIdx + 1).setValue('ma_nv');
+      }
+      
+      // Bổ sung cột he_so_quy_doi nếu chưa có
+      var hasHeSo = false;
+      for (var j = 0; j < headers.length; j++) {
+        if (String(headers[j]).toLowerCase().trim() === 'he_so_quy_doi') {
+          hasHeSo = true;
+          break;
+        }
+      }
+      
+      if (!hasHeSo) {
+        var insertPos = (emailIdx !== -1 ? emailIdx + 2 : sheet.getLastColumn() + 1);
+        sheet.insertColumnAfter(insertPos - 1);
+        sheet.getRange(1, insertPos).setValue('he_so_quy_doi');
+        
+        if (sheet.getLastRow() > 1) {
+          var numRows = sheet.getLastRow() - 1;
+          var fillVals = [];
+          for (var k = 0; k < numRows; k++) {
+            fillVals.push([1.0]);
+          }
+          sheet.getRange(2, insertPos, numRows, 1).setValues(fillVals);
+        }
+      }
+    }
+  } catch (e) {
+    Logger.log('Lỗi upgradeSheetHeaders: ' + e);
+  }
+}
+
+/**
  * Khởi tạo tiêu đề bảng nếu sheet chưa tồn tại
  */
 function setupSheetsIfMissing() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   
   var defaultHeaders = {
-    [SHEET_NAMES.STATIONS]: ['id_nha_tram', 'ma_nha_tram', 'ten_nha_tram', 'to_ha_tang', 'dia_ban', 'loai_nha_tram', 'dia_chi', 'co_may_phat', 'nguoi_phu_trach', 'email_phu_trach', 'trang_thai', 'ghi_chu'],
+    [SHEET_NAMES.STATIONS]: ['id_nha_tram', 'ma_nha_tram', 'ten_nha_tram', 'to_ha_tang', 'dia_ban', 'loai_nha_tram', 'dia_chi', 'co_may_phat', 'nguoi_phu_trach', 'ma_nv', 'he_so_quy_doi', 'trang_thai', 'ghi_chu'],
     [SHEET_NAMES.RECORDS]: ['id_ho_so', 'id_nha_tram', 'ma_nha_tram', 'ten_nha_tram', 'to_ha_tang', 'ngay_khao_sat', 'dot_danh_gia', 'nguoi_khao_sat', 'email_nguoi_khao_sat', 's1_truoc', 's2_truoc', 's3_truoc', 's4_truoc', 's5_truoc', 'tong_truoc', 's1_sau', 's2_sau', 's3_sau', 's4_sau', 's5_sau', 'tong_sau', 'muc_cai_thien', 'xep_loai_truoc', 'xep_loai_sau', 'nguy_co_nghiem_trong', 'duoc_cong_nhan', 'noi_dung_thuc_hien', 'anh_truoc_url', 'anh_sau_url', 'ngay_hoan_thanh', 'ngay_tai_kiem_tra', 'trang_thai_ho_so', 'canh_bao_tai_kiem_tra'],
     [SHEET_NAMES.RECOMMENDATIONS]: ['id_kien_nghi', 'id_ho_so', 'id_nha_tram', 'ma_nha_tram', 'to_ha_tang', 'ngay_phat_hien', 'loai_nguy_co', 'muc_uu_tien', 'noi_dung_kien_nghi', 'pham_vi_xu_ly', 'dau_moi_xu_ly', 'han_xu_ly', 'trang_thai', 'ngay_hoan_thanh', 'anh_truoc_url', 'anh_sau_url', 'qua_han', 'so_ngay_qua_han', 'nguoi_tao'],
     [SHEET_NAMES.PHOTOS]: ['id_anh', 'id_ho_so', 'id_nha_tram', 'ma_nha_tram', 'loai_anh', 'hang_muc_5s', 'url_drive', 'mo_ta', 'ngay_chup', 'nguoi_tai', 'thoi_diem_tai'],
@@ -519,6 +586,9 @@ function setupSheetsIfMissing() {
       sheet.appendRow(defaultHeaders[sheetName]);
     }
   });
+
+  // Tự động kiểm tra và nâng cấp tiêu đề sheet cũ
+  upgradeSheetHeaders();
 
   SpreadsheetApp.flush();
 }
@@ -535,11 +605,11 @@ function initSampleData() {
   var stationsSheet = ss.getSheetByName(SHEET_NAMES.STATIONS);
   if (stationsSheet && stationsSheet.getLastRow() <= 1) {
     var stationsData = [
-      ['NT0001', 'TPO-0215', 'BTS Trung tâm Việt Trì', 'Tổ Hạ tầng Việt Trì', 'Việt Trì', 'BTS', 'Số 12 Đường Hùng Vương, TP Việt Trì, Phú Thọ', 'Có', 'Nguyễn Văn A', 'viettri.5s@vnpt.vn', 'Đang khai thác', 'Trạm trọng điểm khu vực trung tâm'],
-      ['NT0002', 'VPC-0831', 'BTS Vĩnh Yên Center', 'Tổ Hạ tầng Vĩnh Yên', 'Vĩnh Yên', 'BTS', 'Đường Nguyễn Tất Thành, Vĩnh Yên, Phú Thọ', 'Không', 'Lê Văn C', 'vinhyen.5s@vnpt.vn', 'Đang khai thác', ''],
-      ['NT0003', 'HBH-0148', 'Trạm Hòa Bình Hill', 'Tổ Hạ tầng Hòa Bình', 'Hòa Bình', 'BTS', 'Khu vực Đồi Cao, Hòa Bình', 'Có', 'Phạm Văn D', 'hoabinh.5s@vnpt.vn', 'Đang khai thác', ''],
-      ['NT0004', 'CSHT_PTO_00105', 'Trạm Thanh Ba Center', 'Tổ Hạ tầng Thanh Ba', 'Thanh Ba', 'Phòng máy', 'Phường Phong Châu, TX Phú Thọ', 'Có', 'Trần Văn B', 'phutho.5s@vnpt.vn', 'Đang khai thác', ''],
-      ['NT0005', 'CSHT_PTO_00450', 'Trạm Lương Sơn Hub', 'Tổ Hạ tầng Lương Sơn', 'Lương Sơn', 'BTS', 'Thị trấn Lương Sơn, Phú Thọ', 'Có', 'Hoàng Văn E', 'luongson.5s@vnpt.vn', 'Đang khai thác', '']
+      ['NT0001', 'TPO-0215', 'BTS Trung tâm Việt Trì', 'Tổ Hạ tầng Việt Trì', 'Việt Trì', 'BTS', 'Số 12 Đường Hùng Vương, TP Việt Trì, Phú Thọ', 'Có', 'Nguyễn Văn A', 'NV_PTO_012', 1.2, 'Đang khai thác', 'Trạm trọng điểm khu vực trung tâm'],
+      ['NT0002', 'VPC-0831', 'BTS Vĩnh Yên Center', 'Tổ Hạ tầng Vĩnh Yên', 'Vĩnh Yên', 'BTS', 'Đường Nguyễn Tất Thành, Vĩnh Yên, Phú Thọ', 'Không', 'Lê Văn C', 'NV_PTO_045', 1.0, 'Đang khai thác', ''],
+      ['NT0003', 'HBH-0148', 'Trạm Hòa Bình Hill', 'Tổ Hạ tầng Hòa Bình', 'Hòa Bình', 'BTS', 'Khu vực Đồi Cao, Hòa Bình', 'Có', 'Phạm Văn D', 'NV_PTO_089', 1.5, 'Đang khai thác', ''],
+      ['NT0004', 'CSHT_PTO_00105', 'Trạm Thanh Ba Center', 'Tổ Hạ tầng Thanh Ba', 'Thanh Ba', 'Phòng máy', 'Phường Phong Châu, TX Phú Thọ', 'Có', 'Trần Văn B', 'NV_PTO_033', 1.0, 'Đang khai thác', ''],
+      ['NT0005', 'CSHT_PTO_00450', 'Trạm Lương Sơn Hub', 'Tổ Hạ tầng Lương Sơn', 'Lương Sơn', 'BTS', 'Thị trấn Lương Sơn, Phú Thọ', 'Có', 'Hoàng Văn E', 'NV_PTO_071', 1.2, 'Đang khai thác', '']
     ];
     stationsData.forEach(function(row) { stationsSheet.appendRow(row); });
   }

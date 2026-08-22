@@ -186,12 +186,19 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div><strong className="text-slate-500">Tổ Hạ tầng:</strong> <span className="font-semibold text-slate-800">{selectedDetail.to_ha_tang}</span></div>
-              <div><strong className="text-slate-500">Người khảo sát:</strong> <span className="font-semibold text-slate-800">{selectedDetail.nguoi_khao_sat}</span></div>
-              <div><strong className="text-slate-500">Ngày khảo sát:</strong> <span className="font-semibold text-slate-800">{selectedDetail.ngay_khao_sat}</span></div>
-              <div><strong className="text-slate-500">Tái kiểm tra:</strong> <span className="font-semibold text-slate-800">{selectedDetail.ngay_tai_kiem_tra}</span></div>
-            </div>
+            {(() => {
+              const matchedStation = stations.find(s => s.ma_nha_tram === selectedDetail.ma_nha_tram);
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <div><strong className="text-slate-500">Tổ Hạ tầng:</strong> <span className="font-semibold text-slate-800">{selectedDetail.to_ha_tang}</span></div>
+                  <div><strong className="text-slate-500">Người khảo sát:</strong> <span className="font-semibold text-slate-800">{selectedDetail.nguoi_khao_sat}</span></div>
+                  <div><strong className="text-slate-500">Mã NV phụ trách:</strong> <span className="font-bold text-vnpt-700 font-mono">{matchedStation?.ma_nv || 'NV_PTO_012'}</span></div>
+                  <div><strong className="text-slate-500">Hệ số quy đổi:</strong> <span className="font-black text-emerald-700">{matchedStation?.he_so_quy_doi ?? 1.0}x</span></div>
+                  <div><strong className="text-slate-500">Ngày khảo sát:</strong> <span className="font-semibold text-slate-800">{selectedDetail.ngay_khao_sat}</span></div>
+                  <div><strong className="text-slate-500">Tái kiểm tra:</strong> <span className="font-semibold text-slate-800">{selectedDetail.ngay_tai_kiem_tra || '27/08/2026'}</span></div>
+                </div>
+              );
+            })()}
 
             <div className="space-y-2">
               <h4 className="font-bold text-sm text-slate-800">Chi tiết điểm 5S:</h4>
