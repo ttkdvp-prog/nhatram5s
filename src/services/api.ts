@@ -1,6 +1,6 @@
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary } from '../types';
 import { INITIAL_KPIS, INITIAL_ORG_SCORES, INITIAL_STATIONS, INITIAL_RECORDS, INITIAL_RECOMMENDATIONS } from '../data/initialData';
-import { toLh3Url } from '../utils/imageHelper';
+import { toLh3Url, parseSheetPhotoUrls } from '../utils/imageHelper';
 
 const LOCAL_STORAGE_KEY_URL = 'nhatram5s_appscript_url';
 const LOCAL_STORAGE_KEY_STATIONS = 'nhatram5s_stations_data';
@@ -11,7 +11,6 @@ const LOCAL_STORAGE_KEY_RECOMMENDATIONS = 'nhatram5s_recs_data';
 export const DEFAULT_APPS_SCRIPT_URL =
   (import.meta as any).env?.VITE_APPSCRIPT_URL ||
   'https://script.google.com/macros/s/AKfycbyJd-UnQaqPj3xhMx-FVybu5deYI0VXtqgpQPiWcytJPxcw81Goy7raBlIGLZ3BSmdP_A/exec';
-
 
 export const getAppScriptUrl = (): string => {
   return localStorage.getItem(LOCAL_STORAGE_KEY_URL) || DEFAULT_APPS_SCRIPT_URL;
@@ -43,7 +42,7 @@ export interface UploadImageParams {
   mimeType?: string;
   stationCode?: string;
   stationName?: string;
-  photoType?: 'Trước' | 'Sau';
+  photoType?: 'Trước' | 'Sau' | 'Nguy cơ' | string;
   recordId?: string;
 }
 
@@ -105,9 +104,33 @@ export const fetchDashboardData = async () => {
       const response = await fetch(`${url}?action=getAll`);
       const json = await response.json();
       if (json.status === 'success' && json.data) {
+        const rawRecords: SurveyRecord[] = json.data.records || [];
+        const recordsWithPhotos: SurveyRecord[] = rawRecords.map((r: any) => {
+          const beforeList = parseSheetPhotoUrls(r.anh_truoc_list || r.anh_truoc_url);
+          const afterList = parseSheetPhotoUrls(r.anh_sau_list || r.anh_sau_url);
+          return {
+            ...r,
+            anh_truoc_list: beforeList,
+            anh_sau_list: afterList,
+            anh_truoc_url: beforeList[0] || toLh3Url(r.anh_truoc_url || ''),
+            anh_sau_url: afterList[0] || toLh3Url(r.anh_sau_url || '')
+          };
+        });
+
+        // Cập nhật bộ đệm LocalStorage
+        if (recordsWithPhotos.length > 0) {
+          localStorage.setItem(LOCAL_STORAGE_KEY_RECORDS, JSON.stringify(recordsWithPhotos));
+        }
+        if (json.data.stations?.length > 0) {
+          localStorage.setItem(LOCAL_STORAGE_KEY_STATIONS, JSON.stringify(json.data.stations));
+        }
+        if (json.data.recommendations?.length > 0) {
+          localStorage.setItem(LOCAL_STORAGE_KEY_RECOMMENDATIONS, JSON.stringify(json.data.recommendations));
+        }
+
         return {
           stations: json.data.stations?.length ? json.data.stations : getLocalStations(),
-          records: json.data.records?.length ? json.data.records : getLocalRecords(),
+          records: recordsWithPhotos.length ? recordsWithPhotos : getLocalRecords(),
           recommendations: json.data.recommendations?.length ? json.data.recommendations : getLocalRecommendations(),
           kpis: json.data.stats || INITIAL_KPIS,
           orgScores: INITIAL_ORG_SCORES,
@@ -146,24 +169,64 @@ export const getLocalRecommendations = (): Recommendation[] => {
 
 /**
  * Lưu phiếu khảo sát 5S vào Google Sheet qua Apps Script API duy nhất
+ * Tự động đảm bảo 100% ảnh được upload lên Google Drive & ghép link LH3
  */
 export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
   const url = getAppScriptUrl();
   const currentRecords = getLocalRecords();
   const currentRecs = getLocalRecommendations();
 
+  // 1. Tự động tải tất cả các ảnh còn ở dạng Base64 lên Google Drive nếu có
+  const cleanBeforeList: string[] = [];
+  const rawBeforeList = record.anh_truoc_list && record.anh_truoc_list.length > 0
+    ? record.anh_truoc_list
+    : (record.anh_truoc_url ? [record.anh_truoc_url] : []);
+
+  for (let i = 0; i < rawBeforeList.length; i++) {
+    const item = rawBeforeList[i];
+    if (item.startsWith('data:image/')) {
+      const up = await uploadImageToGoogleDrive({
+        base64Data: item,
+        fileName: `5S_${record.ma_nha_tram || 'TRAM'}_Truoc_${Date.now()}_${i + 1}.jpg`,
+        stationCode: record.ma_nha_tram,
+        stationName: record.ten_nha_tram,
+        photoType: 'Trước'
+      });
+      cleanBeforeList.push(toLh3Url(up.lh3Url));
+    } else {
+      cleanBeforeList.push(toLh3Url(item));
+    }
+  }
+
+  const cleanAfterList: string[] = [];
+  const rawAfterList = record.anh_sau_list && record.anh_sau_list.length > 0
+    ? record.anh_sau_list
+    : (record.anh_sau_url ? [record.anh_sau_url] : []);
+
+  for (let i = 0; i < rawAfterList.length; i++) {
+    const item = rawAfterList[i];
+    if (item.startsWith('data:image/')) {
+      const up = await uploadImageToGoogleDrive({
+        base64Data: item,
+        fileName: `5S_${record.ma_nha_tram || 'TRAM'}_Sau_${Date.now()}_${i + 1}.jpg`,
+        stationCode: record.ma_nha_tram,
+        stationName: record.ten_nha_tram,
+        photoType: 'Sau'
+      });
+      cleanAfterList.push(toLh3Url(up.lh3Url));
+    } else {
+      cleanAfterList.push(toLh3Url(item));
+    }
+  }
+
+  const primaryBeforeUrl = cleanBeforeList[0] || '';
+  const primaryAfterUrl = cleanAfterList[0] || '';
+
   const totalAfter = (record.s1_sau || 0) + (record.s2_sau || 0) + (record.s3_sau || 0) + (record.s4_sau || 0) + (record.s5_sau || 0);
   let xepLoaiSau = 'Chưa đạt';
   if (totalAfter >= 90) xepLoaiSau = 'Tiêu biểu';
   else if (totalAfter >= 80) xepLoaiSau = 'Đạt yêu cầu';
   else if (totalAfter >= 70) xepLoaiSau = 'Cần cải thiện';
-
-  // Chuẩn hóa toàn bộ URL ảnh thành link LH3 Google CDN
-  const cleanBeforeList = (record.anh_truoc_list || []).map(u => toLh3Url(u)).filter(Boolean);
-  const cleanAfterList = (record.anh_sau_list || []).map(u => toLh3Url(u)).filter(Boolean);
-
-  const primaryBeforeUrl = cleanBeforeList[0] || toLh3Url(record.anh_truoc_url || '');
-  const primaryAfterUrl = cleanAfterList[0] || toLh3Url(record.anh_sau_url || '');
 
   const newRecord: SurveyRecord = {
     id_ho_so: 'HS' + String(currentRecords.length + 1).padStart(4, '0'),
@@ -225,7 +288,9 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
       trang_thai: 'Đang xử lý',
       qua_han: 'Không',
       so_ngay_qua_han: 0,
-      nguoi_tao: 'viettri.5s@vnpt.vn'
+      nguoi_tao: 'viettri.5s@vnpt.vn',
+      anh_truoc_url: primaryBeforeUrl,
+      anh_sau_url: primaryAfterUrl
     };
     localStorage.setItem(LOCAL_STORAGE_KEY_RECOMMENDATIONS, JSON.stringify([newRec, ...currentRecs]));
   }
@@ -233,11 +298,13 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
   // Gửi trực tiếp tới Google Apps Script Web App (Code.gs)
   if (url) {
     try {
-      await fetch(url, {
+      const resp = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'saveSurvey', data: newRecord })
       });
+      const resJson = await resp.json();
+      console.log('Survey saved to Google Sheet successfully:', resJson);
     } catch (e) {
       console.warn('Apps Script post error:', e);
     }

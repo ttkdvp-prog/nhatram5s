@@ -280,10 +280,17 @@ function handleSaveSurvey(surveyData) {
 
   // Chuẩn hóa toàn bộ URL ảnh thành link LH3
   var beforePhotosList = Array.isArray(surveyData.anh_truoc_list) ? surveyData.anh_truoc_list.map(toLh3Url).filter(Boolean) : [];
-  var afterPhotosList = Array.isArray(surveyData.anh_sau_list) ? surveyData.anh_sau_list.map(toLh3Url).filter(Boolean) : [];
+  if (beforePhotosList.length === 0 && surveyData.anh_truoc_url) {
+    beforePhotosList = String(surveyData.anh_truoc_url).split(/[\n,;]+/).map(function(s){ return toLh3Url(s.trim()); }).filter(Boolean);
+  }
 
-  var anhTruocJoined = beforePhotosList.length > 0 ? beforePhotosList.join(', ') : toLh3Url(surveyData.anh_truoc_url || '');
-  var anhSauJoined = afterPhotosList.length > 0 ? afterPhotosList.join(', ') : toLh3Url(surveyData.anh_sau_url || '');
+  var afterPhotosList = Array.isArray(surveyData.anh_sau_list) ? surveyData.anh_sau_list.map(toLh3Url).filter(Boolean) : [];
+  if (afterPhotosList.length === 0 && surveyData.anh_sau_url) {
+    afterPhotosList = String(surveyData.anh_sau_url).split(/[\n,;]+/).map(function(s){ return toLh3Url(s.trim()); }).filter(Boolean);
+  }
+
+  var anhTruocJoined = beforePhotosList.join(', ');
+  var anhSauJoined = afterPhotosList.join(', ');
 
   var currentDateStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy');
   var currentTimestampStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy HH:mm:ss');
