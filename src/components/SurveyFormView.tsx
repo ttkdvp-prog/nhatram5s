@@ -541,17 +541,17 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Tên nhà trạm</label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Tên nhân viên quản lý nhà trạm</label>
                 <input
                   type="text"
                   readOnly
-                  value={selectedStationName}
-                  className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl font-semibold text-slate-700 text-sm cursor-not-allowed"
+                  value={stations.find(s => s.ma_nha_tram === selectedStationCode)?.nguoi_phu_trach || 'Nguyễn Văn A'}
+                  className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Mã NV phụ trách trạm</label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Mã NV quản lý trạm</label>
                 <input
                   type="text"
                   readOnly
@@ -581,7 +581,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Người khảo sát</label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Người khảo sát (Đoàn kiểm tra)</label>
                 <input
                   type="text"
                   value={surveyor}
