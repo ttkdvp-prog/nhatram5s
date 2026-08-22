@@ -69,6 +69,13 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
   const [toHaTang, setToHaTang] = useState(
     initialRecord?.to_ha_tang ? initialRecord.to_ha_tang.replace('Tổ Hạ tầng ', '') : defaultStation.to_ha_tang.replace('Tổ Hạ tầng ', '')
   );
+  const [selectedManager, setSelectedManager] = useState<string>(() => {
+    if (initialRecord) {
+      const found = stations.find(s => s.ma_nha_tram === initialRecord.ma_nha_tram);
+      if (found?.nguoi_phu_trach) return found.nguoi_phu_trach;
+    }
+    return defaultStation.nguoi_phu_trach || '';
+  });
   const [surveyDate, setSurveyDate] = useState(initialRecord?.ngay_khao_sat || new Date().toLocaleDateString('vi-VN'));
   const [surveyor, setSurveyor] = useState(initialRecord?.nguoi_khao_sat || 'Nguyễn Văn A');
 
@@ -135,6 +142,10 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
       setSelectedStationCode(initialRecord.ma_nha_tram);
       setSelectedStationName(initialRecord.ten_nha_tram);
       setToHaTang(initialRecord.to_ha_tang ? initialRecord.to_ha_tang.replace('Tổ Hạ tầng ', '') : '');
+      const matched = stations.find(s => s.ma_nha_tram === initialRecord.ma_nha_tram);
+      if (matched?.nguoi_phu_trach) {
+        setSelectedManager(matched.nguoi_phu_trach);
+      }
       setSurveyDate(initialRecord.ngay_khao_sat || new Date().toLocaleDateString('vi-VN'));
       setSurveyor(initialRecord.nguoi_khao_sat || 'Nguyễn Văn A');
       setS1Before(initialRecord.s1_truoc ?? 0);
@@ -155,7 +166,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
       setBeforePhotos(bList.map(toLh3Url));
       setAfterPhotos(aList.map(toLh3Url));
     }
-  }, [initialRecord]);
+  }, [initialRecord, stations]);
 
   // Sync photos to localStorage on state changes
   useEffect(() => {
@@ -217,16 +228,60 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
   const availableOrgs = liveOrgs.length > 0 ? liveOrgs.sort() : CANONICAL_ORGS;
 
   const currentCleanOrg = toHaTang.replace('Tổ Hạ tầng ', '').trim();
-  const filteredStations = stations.filter(
+
+  // Danh sách nhân viên quản lý theo Tổ Hạ tầng đang chọn
+  const stationsInCurrentOrg = stations.filter(
     (s) => !currentCleanOrg || currentCleanOrg === 'Tất cả' || s.to_ha_tang.includes(currentCleanOrg)
   );
+
+  const availableManagers = Array.from(
+    new Set(stationsInCurrentOrg.map((s) => s.nguoi_phu_trach).filter(Boolean))
+  ).sort();
+
+  // Danh sách trạm lọc theo Tổ Hạ tầng VÀ Nhân viên quản lý
+  const filteredStations = stations.filter((s) => {
+    const matchOrg = !currentCleanOrg || currentCleanOrg === 'Tất cả' || s.to_ha_tang.includes(currentCleanOrg);
+    const matchMgr = !selectedManager || selectedManager === 'Tất cả' || s.nguoi_phu_trach === selectedManager;
+    return matchOrg && matchMgr;
+  });
 
   const handleOrgChange = (newOrg: string) => {
     const cleanOrg = newOrg.replace('Tổ Hạ tầng ', '').trim();
     setToHaTang(cleanOrg);
-    const validStations = stations.filter(
+
+    const stInOrg = stations.filter(
       (s) => !cleanOrg || cleanOrg === 'Tất cả' || s.to_ha_tang.includes(cleanOrg)
     );
+    const mgrsInOrg = Array.from(new Set(stInOrg.map((s) => s.nguoi_phu_trach).filter(Boolean)));
+    
+    let newMgr = selectedManager;
+    if (selectedManager !== 'Tất cả' && !mgrsInOrg.includes(selectedManager)) {
+      newMgr = mgrsInOrg[0] || 'Tất cả';
+      setSelectedManager(newMgr);
+    }
+
+    const validStations = stations.filter((s) => {
+      const matchOrg = !cleanOrg || cleanOrg === 'Tất cả' || s.to_ha_tang.includes(cleanOrg);
+      const matchMgr = !newMgr || newMgr === 'Tất cả' || s.nguoi_phu_trach === newMgr;
+      return matchOrg && matchMgr;
+    });
+
+    if (validStations.length > 0) {
+      const isStillValid = validStations.some((s) => s.ma_nha_tram === selectedStationCode);
+      if (!isStillValid) {
+        handleStationChange(validStations[0].ma_nha_tram);
+      }
+    }
+  };
+
+  const handleManagerChange = (newMgr: string) => {
+    setSelectedManager(newMgr);
+    const validStations = stations.filter((s) => {
+      const matchOrg = !currentCleanOrg || currentCleanOrg === 'Tất cả' || s.to_ha_tang.includes(currentCleanOrg);
+      const matchMgr = !newMgr || newMgr === 'Tất cả' || s.nguoi_phu_trach === newMgr;
+      return matchOrg && matchMgr;
+    });
+
     if (validStations.length > 0) {
       const isStillValid = validStations.some((s) => s.ma_nha_tram === selectedStationCode);
       if (!isStillValid) {
@@ -237,10 +292,13 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
 
   const handleStationChange = (code: string) => {
     setSelectedStationCode(code);
-    const found = stations.find(s => s.ma_nha_tram === code);
+    const found = stations.find((s) => s.ma_nha_tram === code);
     if (found) {
       setSelectedStationName(found.ten_nha_tram);
       setToHaTang(found.to_ha_tang.replace('Tổ Hạ tầng ', ''));
+      if (found.nguoi_phu_trach && selectedManager !== 'Tất cả' && selectedManager !== found.nguoi_phu_trach) {
+        setSelectedManager(found.nguoi_phu_trach);
+      }
     }
     const stored = getStoredPhotos(code);
     setBeforePhotos(stored.before.map(toLh3Url));
@@ -505,6 +563,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* 1. Tổ Hạ tầng */}
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">
                   Tổ Hạ tầng <span className="text-vnpt-600 font-bold">*</span>
@@ -523,9 +582,29 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                 </select>
               </div>
 
+              {/* 2. Tên nhân viên quản lý nhà trạm (Dropdown trước Mã nhà trạm) */}
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">
-                  Mã nhà trạm <span className="text-vnpt-600 font-bold">*</span>
+                  Tên nhân viên quản lý nhà trạm <span className="text-vnpt-600 font-bold">*</span>
+                </label>
+                <select
+                  value={selectedManager}
+                  onChange={(e) => handleManagerChange(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-vnpt-500 text-sm cursor-pointer"
+                >
+                  <option value="Tất cả">Tất cả nhân viên ({availableManagers.length})</option>
+                  {availableManagers.map((mgr) => (
+                    <option key={mgr} value={mgr}>
+                      {mgr}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. Mã nhà trạm (Chỉ hiện các trạm của nhân viên này quản lý) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  Mã nhà trạm <span className="text-vnpt-600 font-bold">*</span> ({filteredStations.length} trạm)
                 </label>
                 <select
                   value={selectedStationCode}
@@ -540,16 +619,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Tên nhân viên quản lý nhà trạm</label>
-                <input
-                  type="text"
-                  readOnly
-                  value={stations.find(s => s.ma_nha_tram === selectedStationCode)?.nguoi_phu_trach || 'Nguyễn Văn A'}
-                  className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm cursor-not-allowed"
-                />
-              </div>
-
+              {/* 4. Mã NV quản lý trạm */}
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">Mã NV quản lý trạm</label>
                 <input
@@ -560,6 +630,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                 />
               </div>
 
+              {/* 5. Hệ số quy đổi 5S */}
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">Hệ số quy đổi 5S</label>
                 <div className="flex items-center px-4 py-2 bg-slate-100 border border-slate-200 rounded-xl">
@@ -570,6 +641,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                 </div>
               </div>
 
+              {/* 6. Ngày khảo sát */}
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">Ngày khảo sát</label>
                 <input
@@ -580,6 +652,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                 />
               </div>
 
+              {/* 7. Người khảo sát */}
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-500 mb-1">Người khảo sát (Đoàn kiểm tra)</label>
                 <input
