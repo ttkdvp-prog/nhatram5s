@@ -1,12 +1,17 @@
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary } from '../types';
 import { INITIAL_KPIS, INITIAL_ORG_SCORES, INITIAL_STATIONS, INITIAL_RECORDS, INITIAL_RECOMMENDATIONS } from '../data/initialData';
+import { toLh3Url } from '../utils/imageHelper';
 
 const LOCAL_STORAGE_KEY_URL = 'nhatram5s_appscript_url';
 const LOCAL_STORAGE_KEY_STATIONS = 'nhatram5s_stations_data';
 const LOCAL_STORAGE_KEY_RECORDS = 'nhatram5s_records_data';
 const LOCAL_STORAGE_KEY_RECOMMENDATIONS = 'nhatram5s_recs_data';
 
-export const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyy4cCz3jk2IB1GzkbwPH5pxnMMLEQc5XW4TXvRy0KZWzSm3Vh6xKMwa65O1vby5HxqXQ/exec';
+// 1 Biến API duy nhất trỏ về Google Apps Script Web App Backend (Code.gs)
+export const DEFAULT_APPS_SCRIPT_URL =
+  (import.meta as any).env?.VITE_APPSCRIPT_URL ||
+  'https://script.google.com/macros/s/AKfycbyJd-UnQaqPj3xhMx-FVybu5deYI0VXtqgpQPiWcytJPxcw81Goy7raBlIGLZ3BSmdP_A/exec';
+
 
 export const getAppScriptUrl = (): string => {
   return localStorage.getItem(LOCAL_STORAGE_KEY_URL) || DEFAULT_APPS_SCRIPT_URL;
@@ -28,6 +33,69 @@ export const loadInitialState = () => {
   }
 };
 
+/**
+ * Tải ảnh trực tiếp lên Google Drive thông qua Backend Code.gs (Apps Script API)
+ * Tự động phân quyền và trả về link LH3 (https://lh3.googleusercontent.com/d/{fileId})
+ */
+export interface UploadImageParams {
+  base64Data: string;
+  fileName?: string;
+  mimeType?: string;
+  stationCode?: string;
+  stationName?: string;
+  photoType?: 'Trước' | 'Sau';
+  recordId?: string;
+}
+
+export interface UploadImageResult {
+  fileId: string;
+  lh3Url: string;
+  fileName: string;
+  driveViewLink?: string;
+}
+
+export const uploadImageToGoogleDrive = async (params: UploadImageParams): Promise<UploadImageResult> => {
+  const scriptUrl = getAppScriptUrl();
+
+  if (scriptUrl) {
+    try {
+      const response = await fetch(scriptUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'uploadImage',
+          data: params
+        })
+      });
+
+      if (response.ok) {
+        const json = await response.json();
+        if (json.status === 'success' && json.data?.lh3Url) {
+          return {
+            fileId: json.data.fileId,
+            lh3Url: toLh3Url(json.data.lh3Url),
+            fileName: json.data.fileName || params.fileName || 'photo.jpg',
+            driveViewLink: json.data.driveViewLink
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Apps Script upload failed, fallback to local display:', err);
+    }
+  }
+
+  // Fallback nếu không có kết nối internet hoặc chưa cấu hình URL
+  const fakeId = 'local_' + Date.now().toString(36);
+  return {
+    fileId: fakeId,
+    lh3Url: params.base64Data,
+    fileName: params.fileName || 'photo.jpg'
+  };
+};
+
+/**
+ * Lấy toàn bộ dữ liệu từ Google Sheets qua Apps Script API duy nhất
+ */
 export const fetchDashboardData = async () => {
   const url = getAppScriptUrl();
   loadInitialState();
@@ -76,6 +144,9 @@ export const getLocalRecommendations = (): Recommendation[] => {
   return raw ? JSON.parse(raw) : INITIAL_RECOMMENDATIONS;
 };
 
+/**
+ * Lưu phiếu khảo sát 5S vào Google Sheet qua Apps Script API duy nhất
+ */
 export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
   const url = getAppScriptUrl();
   const currentRecords = getLocalRecords();
@@ -86,6 +157,13 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
   if (totalAfter >= 90) xepLoaiSau = 'Tiêu biểu';
   else if (totalAfter >= 80) xepLoaiSau = 'Đạt yêu cầu';
   else if (totalAfter >= 70) xepLoaiSau = 'Cần cải thiện';
+
+  // Chuẩn hóa toàn bộ URL ảnh thành link LH3 Google CDN
+  const cleanBeforeList = (record.anh_truoc_list || []).map(u => toLh3Url(u)).filter(Boolean);
+  const cleanAfterList = (record.anh_sau_list || []).map(u => toLh3Url(u)).filter(Boolean);
+
+  const primaryBeforeUrl = cleanBeforeList[0] || toLh3Url(record.anh_truoc_url || '');
+  const primaryAfterUrl = cleanAfterList[0] || toLh3Url(record.anh_sau_url || '');
 
   const newRecord: SurveyRecord = {
     id_ho_so: 'HS' + String(currentRecords.length + 1).padStart(4, '0'),
@@ -115,10 +193,10 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
     nguy_co_nghiem_trong: record.noi_dung_kien_nghi ? 'Có' : 'Không',
     duoc_cong_nhan: 'Có',
     noi_dung_thuc_hien: record.noi_dung_thuc_hien || 'Hoàn thành khảo sát 5S',
-    anh_truoc_url: record.anh_truoc_url || (record.anh_truoc_list?.[0] || ''),
-    anh_sau_url: record.anh_sau_url || (record.anh_sau_list?.[0] || ''),
-    anh_truoc_list: record.anh_truoc_list || [],
-    anh_sau_list: record.anh_sau_list || [],
+    anh_truoc_url: primaryBeforeUrl,
+    anh_sau_url: primaryAfterUrl,
+    anh_truoc_list: cleanBeforeList,
+    anh_sau_list: cleanAfterList,
     ngay_hoan_thanh: new Date().toLocaleDateString('vi-VN'),
     ngay_tai_kiem_tra: record.ngay_tai_kiem_tra || '27/08/2026',
     trang_thai_ho_so: 'Hoàn thành',
@@ -152,14 +230,13 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
     localStorage.setItem(LOCAL_STORAGE_KEY_RECOMMENDATIONS, JSON.stringify([newRec, ...currentRecs]));
   }
 
-  // Also post to Google Apps Script if URL exists
+  // Gửi trực tiếp tới Google Apps Script Web App (Code.gs)
   if (url) {
     try {
       await fetch(url, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'saveSurvey', data: record })
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'saveSurvey', data: newRecord })
       });
     } catch (e) {
       console.warn('Apps Script post error:', e);
