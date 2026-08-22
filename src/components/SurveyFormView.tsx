@@ -27,6 +27,7 @@ import { toLh3Url, extractDriveFileId, isDriveOrLh3Url, compressImageFile, safeL
 import { uploadImageToGoogleDrive } from '../services/api';
 import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
 import { CANONICAL_ORGS } from '../data/initialData';
+import { SearchableCombobox } from './SearchableCombobox';
 
 interface SurveyFormViewProps {
   stations: Station[];
@@ -582,41 +583,47 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                 </select>
               </div>
 
-              {/* 2. Tên nhân viên quản lý nhà trạm (Dropdown trước Mã nhà trạm) */}
+              {/* 2. Tên nhân viên quản lý nhà trạm (Tìm kiếm thông minh, hỗ trợ viết tắt) */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">
-                  Tên nhân viên quản lý nhà trạm <span className="text-vnpt-600 font-bold">*</span>
-                </label>
-                <select
+                <SearchableCombobox
+                  label="Tên nhân viên quản lý nhà trạm"
+                  required={true}
                   value={selectedManager}
-                  onChange={(e) => handleManagerChange(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-vnpt-500 text-sm cursor-pointer"
-                >
-                  <option value="Tất cả">Tất cả nhân viên ({availableManagers.length})</option>
-                  {availableManagers.map((mgr) => (
-                    <option key={mgr} value={mgr}>
-                      {mgr}
-                    </option>
-                  ))}
-                </select>
+                  onChange={handleManagerChange}
+                  placeholder="Gõ tên nhân viên hoặc viết tắt (vd: nva, anh, le...)"
+                  emptyText="Không tìm thấy nhân viên phù hợp"
+                  options={[
+                    { value: 'Tất cả', label: `Tất cả nhân viên (${availableManagers.length})` },
+                    ...availableManagers.map((mgr) => {
+                      const managedCount = stations.filter((s) => s.nguoi_phu_trach === mgr).length;
+                      const sampleStation = stations.find((s) => s.nguoi_phu_trach === mgr);
+                      return {
+                        value: mgr,
+                        label: mgr,
+                        subLabel: `${managedCount} nhà trạm quản lý`,
+                        badge: sampleStation?.ma_nv
+                      };
+                    })
+                  ]}
+                />
               </div>
 
-              {/* 3. Mã nhà trạm (Chỉ hiện các trạm của nhân viên này quản lý) */}
+              {/* 3. Mã nhà trạm (Tìm kiếm thông minh theo mã hoặc tên trạm) */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">
-                  Mã nhà trạm <span className="text-vnpt-600 font-bold">*</span> ({filteredStations.length} trạm)
-                </label>
-                <select
+                <SearchableCombobox
+                  label={`Mã nhà trạm (${filteredStations.length} trạm)`}
+                  required={true}
                   value={selectedStationCode}
-                  onChange={(e) => handleStationChange(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-vnpt-500 text-sm cursor-pointer"
-                >
-                  {(filteredStations.length > 0 ? filteredStations : stations).map((s) => (
-                    <option key={s.id_nha_tram} value={s.ma_nha_tram}>
-                      {s.ma_nha_tram} - {s.ten_nha_tram}
-                    </option>
-                  ))}
-                </select>
+                  onChange={handleStationChange}
+                  placeholder="Gõ mã trạm, tên trạm hoặc viết tắt (vd: tpo, 0215, viettri...)"
+                  emptyText="Không tìm thấy nhà trạm phù hợp"
+                  options={(filteredStations.length > 0 ? filteredStations : stations).map((s) => ({
+                    value: s.ma_nha_tram,
+                    label: s.ma_nha_tram,
+                    subLabel: s.ten_nha_tram,
+                    badge: s.to_ha_tang ? s.to_ha_tang.replace('Tổ Hạ tầng ', '') : undefined
+                  }))}
+                />
               </div>
 
               {/* 4. Mã NV quản lý trạm */}
