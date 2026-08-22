@@ -26,7 +26,7 @@ import {
 import { toLh3Url, extractDriveFileId, isDriveOrLh3Url, compressImageFile, safeLocalStorageSet } from '../utils/imageHelper';
 import { uploadImageToGoogleDrive } from '../services/api';
 import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
-import { CANONICAL_ORGS } from '../data/initialData';
+import { CANONICAL_ORGS, getDefaultSurveyor } from '../data/initialData';
 import { SearchableCombobox } from './SearchableCombobox';
 
 interface SurveyFormViewProps {
@@ -78,7 +78,9 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
     return defaultStation.nguoi_phu_trach || '';
   });
   const [surveyDate, setSurveyDate] = useState(initialRecord?.ngay_khao_sat || new Date().toLocaleDateString('vi-VN'));
-  const [surveyor, setSurveyor] = useState(initialRecord?.nguoi_khao_sat || 'Nguyễn Văn A');
+  const [surveyor, setSurveyor] = useState(
+    initialRecord?.nguoi_khao_sat || getDefaultSurveyor(initialRecord?.to_ha_tang || defaultStation.to_ha_tang)
+  );
 
   // 5S Score Inputs
   const [s1Before, setS1Before] = useState<number>(initialRecord?.s1_truoc ?? 12);
@@ -250,6 +252,10 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
     const cleanOrg = newOrg.replace('Tổ Hạ tầng ', '').trim();
     setToHaTang(cleanOrg);
 
+    // Tự động gán mặc định tên Tổ trưởng của tổ được chọn
+    const defaultLeader = getDefaultSurveyor(newOrg);
+    setSurveyor(defaultLeader);
+
     const stInOrg = stations.filter(
       (s) => !cleanOrg || cleanOrg === 'Tất cả' || s.to_ha_tang.includes(cleanOrg)
     );
@@ -312,8 +318,11 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
     setSelectedStationCode(st.ma_nha_tram);
     setSelectedStationName(st.ten_nha_tram);
     setToHaTang(st.to_ha_tang.replace('Tổ Hạ tầng ', ''));
+    if (st.nguoi_phu_trach) {
+      setSelectedManager(st.nguoi_phu_trach);
+    }
     setSurveyDate(new Date().toLocaleDateString('vi-VN'));
-    setSurveyor('Nguyễn Văn A');
+    setSurveyor(getDefaultSurveyor(st.to_ha_tang));
     setS1Before(0);
     setS2Before(0);
     setS3Before(0);
@@ -660,15 +669,47 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
               </div>
 
               {/* 7. Người khảo sát */}
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Người khảo sát (Đoàn kiểm tra)</label>
+              <div className="sm:col-span-2 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-500">
+                    Người khảo sát (Đoàn kiểm tra) <span className="text-vnpt-600 font-bold">*</span>
+                  </label>
+                  <span className="text-[11px] font-semibold text-slate-400">
+                    Mặc định: Tổ trưởng tổ thực hiện
+                  </span>
+                </div>
                 <input
                   type="text"
                   value={surveyor}
                   onChange={(e) => setSurveyor(e.target.value)}
-                  placeholder="Nhập tên người khảo sát..."
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-vnpt-500 text-sm"
+                  placeholder="Nhập tên người khảo sát hoặc chọn gợi ý..."
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-vnpt-500 text-sm"
                 />
+                {/* Gợi ý nhanh 1 chạm */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[10px] font-semibold text-slate-400">Gợi ý nhanh:</span>
+                  <button
+                    type="button"
+                    onClick={() => setSurveyor(getDefaultSurveyor(toHaTang))}
+                    className="px-2 py-0.5 bg-slate-100 hover:bg-blue-50 hover:text-vnpt-700 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200 transition-colors cursor-pointer"
+                  >
+                    👤 {getDefaultSurveyor(toHaTang)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSurveyor('Đoàn kiểm tra 5S Trung tâm')}
+                    className="px-2 py-0.5 bg-slate-100 hover:bg-blue-50 hover:text-vnpt-700 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200 transition-colors cursor-pointer"
+                  >
+                    🏢 Đoàn kiểm tra 5S Trung tâm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSurveyor('Đầu mối ATVSV / Công đoàn')}
+                    className="px-2 py-0.5 bg-slate-100 hover:bg-blue-50 hover:text-vnpt-700 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200 transition-colors cursor-pointer"
+                  >
+                    🛡️ Đầu mối ATVSV / Công đoàn
+                  </button>
+                </div>
               </div>
             </div>
           </div>

@@ -20,6 +20,12 @@ export const CANONICAL_ORGS = [
   'Tổ Hạ tầng Tân Lạc'
 ];
 
+export const getDefaultSurveyor = (toHaTang?: string): string => {
+  if (!toHaTang || toHaTang === 'Tất cả') return 'Tổ trưởng Tổ Hạ tầng Việt Trì';
+  const clean = toHaTang.replace('Tổ Hạ tầng ', '').trim();
+  return `Tổ trưởng Tổ Hạ tầng ${clean}`;
+};
+
 export const INITIAL_ORG_SCORES: OrgScoreSummary[] = [
   { to_ha_tang: 'Việt Trì', scoreBefore: 73, scoreAfter: 91 },
   { to_ha_tang: 'Vĩnh Yên', scoreBefore: 71, scoreAfter: 89 },
