@@ -46,8 +46,9 @@ export const Layout: React.FC = () => {
 
   const handleSaveSurvey = async (formData: Partial<SurveyRecord>) => {
     await saveSurveyForm(formData);
-    await loadData();
-    setActiveTab('overview');
+    await loadData(true);
+    setSelectedRecordForForm(null);
+    setActiveTab('records');
   };
 
   const navigateToSurvey = (record?: SurveyRecord) => {

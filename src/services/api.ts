@@ -113,7 +113,7 @@ export const fetchDashboardData = async () => {
       });
       const json = await response.json();
       if (json.status === 'success' && json.data) {
-        const rawRecords: SurveyRecord[] = json.data.records || [];
+        const rawRecords: SurveyRecord[] = Array.isArray(json.data.records) ? json.data.records : [];
         const recordsWithPhotos: SurveyRecord[] = rawRecords.map((r: any) => {
           const beforeList = parseSheetPhotoUrls(r.anh_truoc_list || r.anh_truoc_url);
           const afterList = parseSheetPhotoUrls(r.anh_sau_list || r.anh_sau_url);
@@ -127,20 +127,18 @@ export const fetchDashboardData = async () => {
         });
 
         // Cập nhật bộ đệm an toàn
-        if (recordsWithPhotos.length > 0) {
-          safeLocalStorageSet(LOCAL_STORAGE_KEY_RECORDS, JSON.stringify(recordsWithPhotos));
-        }
-        if (json.data.stations?.length > 0) {
+        safeLocalStorageSet(LOCAL_STORAGE_KEY_RECORDS, JSON.stringify(recordsWithPhotos));
+        if (Array.isArray(json.data.stations) && json.data.stations.length > 0) {
           safeLocalStorageSet(LOCAL_STORAGE_KEY_STATIONS, JSON.stringify(json.data.stations));
         }
-        if (json.data.recommendations?.length > 0) {
+        if (Array.isArray(json.data.recommendations)) {
           safeLocalStorageSet(LOCAL_STORAGE_KEY_RECOMMENDATIONS, JSON.stringify(json.data.recommendations));
         }
 
         return {
-          stations: json.data.stations?.length ? json.data.stations : getLocalStations(),
-          records: recordsWithPhotos.length ? recordsWithPhotos : getLocalRecords(),
-          recommendations: json.data.recommendations?.length ? json.data.recommendations : getLocalRecommendations(),
+          stations: Array.isArray(json.data.stations) && json.data.stations.length ? json.data.stations : getLocalStations(),
+          records: recordsWithPhotos,
+          recommendations: Array.isArray(json.data.recommendations) ? json.data.recommendations : getLocalRecommendations(),
           kpis: json.data.stats || INITIAL_KPIS,
           orgScores: INITIAL_ORG_SCORES,
           isLive: true
@@ -231,14 +229,29 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
   const primaryBeforeUrl = cleanBeforeList[0] || '';
   const primaryAfterUrl = cleanAfterList[0] || '';
 
-  const totalAfter = (record.s1_sau || 0) + (record.s2_sau || 0) + (record.s3_sau || 0) + (record.s4_sau || 0) + (record.s5_sau || 0);
+  const s1Truoc = record.s1_truoc !== undefined ? Number(record.s1_truoc) : 0;
+  const s2Truoc = record.s2_truoc !== undefined ? Number(record.s2_truoc) : 0;
+  const s3Truoc = record.s3_truoc !== undefined ? Number(record.s3_truoc) : 0;
+  const s4Truoc = record.s4_truoc !== undefined ? Number(record.s4_truoc) : 0;
+  const s5Truoc = record.s5_truoc !== undefined ? Number(record.s5_truoc) : 0;
+  const totalBefore = s1Truoc + s2Truoc + s3Truoc + s4Truoc + s5Truoc;
+
+  const s1Sau = record.s1_sau !== undefined ? Number(record.s1_sau) : 0;
+  const s2Sau = record.s2_sau !== undefined ? Number(record.s2_sau) : 0;
+  const s3Sau = record.s3_sau !== undefined ? Number(record.s3_sau) : 0;
+  const s4Sau = record.s4_sau !== undefined ? Number(record.s4_sau) : 0;
+  const s5Sau = record.s5_sau !== undefined ? Number(record.s5_sau) : 0;
+  const totalAfter = s1Sau + s2Sau + s3Sau + s4Sau + s5Sau;
+
   let xepLoaiSau = 'Chưa đạt';
   if (totalAfter >= 90) xepLoaiSau = 'Tiêu biểu';
   else if (totalAfter >= 80) xepLoaiSau = 'Đạt yêu cầu';
   else if (totalAfter >= 70) xepLoaiSau = 'Cần cải thiện';
 
+  let generatedId = 'HS' + String(currentRecords.length + 1).padStart(4, '0');
+
   const newRecord: SurveyRecord = {
-    id_ho_so: 'HS' + String(currentRecords.length + 1).padStart(4, '0'),
+    id_ho_so: generatedId,
     id_nha_tram: record.id_nha_tram || 'NT0001',
     ma_nha_tram: record.ma_nha_tram || 'TPO-0215',
     ten_nha_tram: record.ten_nha_tram || 'BTS Trung tâm Việt Trì',
@@ -247,19 +260,19 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
     dot_danh_gia: 'Sau cải thiện',
     nguoi_khao_sat: record.nguoi_khao_sat || 'Nguyễn Văn A',
     email_nguoi_khao_sat: 'viettri.5s@vnpt.vn',
-    s1_truoc: record.s1_truoc || 12,
-    s2_truoc: record.s2_truoc || 13,
-    s3_truoc: record.s3_truoc || 18,
-    s4_truoc: record.s4_truoc || 14,
-    s5_truoc: record.s5_truoc || 11,
-    tong_truoc: (record.s1_truoc || 12) + (record.s2_truoc || 13) + (record.s3_truoc || 18) + (record.s4_truoc || 14) + (record.s5_truoc || 11),
-    s1_sau: record.s1_sau || 17,
-    s2_sau: record.s2_sau || 18,
-    s3_sau: record.s3_sau || 22,
-    s4_sau: record.s4_sau || 16,
-    s5_sau: record.s5_sau || 14,
+    s1_truoc: s1Truoc,
+    s2_truoc: s2Truoc,
+    s3_truoc: s3Truoc,
+    s4_truoc: s4Truoc,
+    s5_truoc: s5Truoc,
+    tong_truoc: totalBefore,
+    s1_sau: s1Sau,
+    s2_sau: s2Sau,
+    s3_sau: s3Sau,
+    s4_sau: s4Sau,
+    s5_sau: s5Sau,
     tong_sau: totalAfter,
-    muc_cai_thien: totalAfter - ((record.s1_truoc || 12) + (record.s2_truoc || 13) + (record.s3_truoc || 18) + (record.s4_truoc || 14) + (record.s5_truoc || 11)),
+    muc_cai_thien: totalAfter - totalBefore,
     xep_loai_truoc: 'Chưa đạt',
     xep_loai_sau: xepLoaiSau,
     nguy_co_nghiem_trong: record.noi_dung_kien_nghi ? 'Có' : 'Không',
@@ -276,6 +289,27 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
     noi_dung_kien_nghi: record.noi_dung_kien_nghi,
     muc_uu_tien: record.muc_uu_tien || 'Cao'
   };
+
+  // 2. Gửi trực tiếp tới Google Apps Script Web App (Code.gs)
+  if (url) {
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'saveSurvey', data: newRecord }),
+        redirect: 'follow'
+      });
+      const resJson = await resp.json();
+      if (resJson && resJson.status === 'success') {
+        if (resJson.recordId) {
+          newRecord.id_ho_so = resJson.recordId;
+        }
+        console.log('Survey saved to Google Sheet successfully:', resJson);
+      }
+    } catch (e) {
+      console.warn('Apps Script post error:', e);
+    }
+  }
 
   const updatedRecords = [newRecord, ...currentRecords];
   safeLocalStorageSet(LOCAL_STORAGE_KEY_RECORDS, JSON.stringify(updatedRecords));
@@ -302,22 +336,6 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
       anh_sau_url: primaryAfterUrl
     };
     safeLocalStorageSet(LOCAL_STORAGE_KEY_RECOMMENDATIONS, JSON.stringify([newRec, ...currentRecs]));
-  }
-
-  // Gửi trực tiếp tới Google Apps Script Web App (Code.gs)
-  if (url) {
-    try {
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'saveSurvey', data: newRecord }),
-        redirect: 'follow'
-      });
-      const resJson = await resp.json();
-      console.log('Survey saved to Google Sheet successfully:', resJson);
-    } catch (e) {
-      console.warn('Apps Script post error:', e);
-    }
   }
 
   return newRecord;
