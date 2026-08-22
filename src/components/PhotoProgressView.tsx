@@ -225,7 +225,15 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
     });
   }, [records, stationMap]);
 
-  // 2. Thống kê theo 9 Tổ Hạ tầng: KẾ HOẠCH GIAO = (Số nhân viên không tính tổ trưởng) x 2
+  // Xác định định mức giao theo từng kỳ: Tháng 8 = 1 trạm/NV, Từ Tháng 9 trở đi = 2 trạm/NV
+  const quotaMultiplier = useMemo(() => {
+    if (selectedMonth.includes('08') || selectedMonth.includes('Tháng 8') || selectedMonth.includes('Tháng 08')) {
+      return 1;
+    }
+    return 2;
+  }, [selectedMonth]);
+
+  // 2. Thống kê theo 9 Tổ Hạ tầng: KẾ HOẠCH GIAO = (Số nhân viên không tính tổ trưởng) x Định mức
   const orgSummaries: OrgMonthlyPlanSummary[] = useMemo(() => {
     const liveOrgs = Array.from(new Set(stations.map((s) => s.to_ha_tang).filter(Boolean)));
     const orgList = liveOrgs.length > 0 ? liveOrgs.sort() : CANONICAL_ORGS;
@@ -252,8 +260,8 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
       const employeeList = rawEmployees.length > 0 ? rawEmployees : [`NV ${cleanOrg} 01`, `NV ${cleanOrg} 02`];
       const employeeCount = employeeList.length;
 
-      // KẾ HOẠCH GIAO = SỐ NHÂN VIÊN TRONG TỔ x 2 (mỗi người 2 trạm/tháng)
-      const targetStations = employeeCount * 2;
+      // KẾ HOẠCH GIAO = SỐ NHÂN VIÊN TRONG TỔ x Định mức (Tháng 8: x1, Từ Tháng 9: x2)
+      const targetStations = employeeCount * quotaMultiplier;
 
       // Lọc các trạm của tổ này đã thực hiện 5S trong tháng được chọn (hoặc tất cả các tháng)
       const orgPerformedInMonth = performed5SStatuses.filter((s) => {
@@ -300,7 +308,7 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
         statusBadgeColor
       };
     });
-  }, [stations, performed5SStatuses, selectedMonth]);
+  }, [stations, performed5SStatuses, selectedMonth, quotaMultiplier]);
 
   // Tổng hợp toàn mạng KPI theo tháng
   const networkTotals = useMemo(() => {
@@ -413,8 +421,16 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
                 Tiến độ thực hiện 5S theo tháng
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Kế hoạch giao: <strong className="text-vnpt-700 font-bold">02 trạm / nhân viên / tháng</strong> (Số nhân viên trong tổ không tính Tổ trưởng × 2)
+                Định mức {selectedMonth}: <strong className="text-vnpt-700 font-bold">0{quotaMultiplier} trạm / nhân viên / tháng</strong> (Số nhân viên không tính Tổ trưởng × {quotaMultiplier})
               </p>
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                  📌 Tháng 8: 1 trạm/NV (×1)
+                </span>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                  🚀 Từ Tháng 9: 2 trạm/NV (×2)
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -475,7 +491,7 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
             <span className="text-xs font-bold text-slate-400">nhà trạm cần 5S</span>
           </div>
           <p className="mt-3 text-[11px] font-medium text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-100">
-            🎯 Định mức: <strong>{networkTotals.totalEmployees} NV × 2 trạm</strong>
+            🎯 Định mức: <strong>{networkTotals.totalEmployees} NV × {quotaMultiplier} trạm = {networkTotals.totalTarget} trạm</strong>
           </p>
         </div>
 
@@ -545,12 +561,12 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
               <span>Bảng theo dõi kế hoạch 5S theo Tổ Hạ tầng ({selectedMonth})</span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Định mức kế hoạch: Mỗi nhân viên 5S 02 trạm/tháng (Số NV trong tổ không tính tổ trưởng × 2)
+              Định mức {selectedMonth}: Mỗi nhân viên 5S <strong>0{quotaMultiplier} trạm/tháng</strong> (Số NV trong tổ không tính tổ trưởng × {quotaMultiplier})
             </p>
           </div>
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 bg-blue-50 text-vnpt-700 rounded-xl text-xs font-black border border-blue-200">
-              Kỳ: {selectedMonth}
+              Kỳ: {selectedMonth} (×{quotaMultiplier} trạm/NV)
             </span>
           </div>
         </div>
@@ -562,7 +578,7 @@ export const PhotoProgressView: React.FC<PhotoProgressViewProps> = ({
               <tr className="bg-slate-50 text-slate-600 font-extrabold uppercase tracking-wider border-y border-slate-200">
                 <th className="py-3 px-3">Tổ Hạ tầng</th>
                 <th className="py-3 px-2 text-center">Số NV (không tính Tổ trưởng)</th>
-                <th className="py-3 px-2 text-center bg-purple-50/50 text-purple-800 font-black">Kế hoạch giao (Trạm)</th>
+                <th className="py-3 px-2 text-center bg-purple-50/50 text-purple-800 font-black">Kế hoạch giao (×{quotaMultiplier} trạm)</th>
                 <th className="py-3 px-2 text-center bg-emerald-50/50 text-emerald-800 font-black">Đã thực hiện 5S</th>
                 <th className="py-3 px-2 text-center text-emerald-700">Đủ 2 ảnh</th>
                 <th className="py-3 px-2 text-center text-amber-700">Chỉ 1 ảnh</th>
