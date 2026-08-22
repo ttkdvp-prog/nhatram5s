@@ -501,9 +501,6 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
               </span>
             )}
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Tự động lưu ảnh vào Google Drive, ghép link chuẩn LH3 và đồng bộ thời gian thực lên Google Sheets
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -670,14 +667,9 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
 
               {/* 7. Người khảo sát */}
               <div className="sm:col-span-2 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold text-slate-500">
-                    Người khảo sát (Đoàn kiểm tra) <span className="text-vnpt-600 font-bold">*</span>
-                  </label>
-                  <span className="text-[11px] font-semibold text-slate-400">
-                    Mặc định: Tổ trưởng tổ thực hiện
-                  </span>
-                </div>
+                <label className="block text-xs font-semibold text-slate-500">
+                  Người khảo sát (Đoàn kiểm tra) <span className="text-vnpt-600 font-bold">*</span>
+                </label>
                 <input
                   type="text"
                   value={surveyor}
