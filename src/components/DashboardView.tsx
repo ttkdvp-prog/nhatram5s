@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary } from '../types';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 import { AlertCircle, Calendar, Filter, Database, CheckCircle2, AlertTriangle, ArrowUpRight } from 'lucide-react';
+import { CANONICAL_ORGS } from '../data/initialData';
 
 interface DashboardViewProps {
   kpis: DashboardKpi;
@@ -28,18 +29,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Dynamically extract all unique "Tổ Hạ tầng" from Google Sheets live data & defaults
   const availableOrgs = useMemo(() => {
-    const orgSet = new Set<string>();
-    const defaults = ['Tổ Hạ tầng Việt Trì', 'Tổ Hạ tầng Vĩnh Yên', 'Tổ Hạ tầng Hòa Bình', 'Tổ Hạ tầng Lương Sơn', 'Tổ Hạ tầng Thanh Ba', 'Tổ Hạ tầng Thanh Sơn'];
-    defaults.forEach(o => orgSet.add(o));
-
+    const liveSet = new Set<string>();
     records.forEach(r => {
-      if (r.to_ha_tang && r.to_ha_tang.trim()) orgSet.add(r.to_ha_tang.trim());
+      if (r.to_ha_tang && r.to_ha_tang.trim()) liveSet.add(r.to_ha_tang.trim());
     });
     stations.forEach(s => {
-      if (s.to_ha_tang && s.to_ha_tang.trim()) orgSet.add(s.to_ha_tang.trim());
+      if (s.to_ha_tang && s.to_ha_tang.trim()) liveSet.add(s.to_ha_tang.trim());
     });
 
-    return Array.from(orgSet).sort();
+    if (liveSet.size > 0) {
+      return Array.from(liveSet).sort();
+    }
+    return CANONICAL_ORGS;
   }, [records, stations]);
 
   // Helper matcher for organization name

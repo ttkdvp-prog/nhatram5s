@@ -8,13 +8,28 @@ export const INITIAL_KPIS: DashboardKpi = {
   avgImprovement: '+19.4'
 };
 
+export const CANONICAL_ORGS = [
+  'Tổ Hạ tầng Việt Trì',
+  'Tổ Hạ tầng Vĩnh Yên',
+  'Tổ Hạ tầng Phúc Yên',
+  'Tổ Hạ tầng Tam Đảo',
+  'Tổ Hạ tầng Thanh Ba',
+  'Tổ Hạ tầng Thanh Sơn',
+  'Tổ Hạ tầng Hòa Bình',
+  'Tổ Hạ tầng Lương Sơn',
+  'Tổ Hạ tầng Tân Lạc'
+];
+
 export const INITIAL_ORG_SCORES: OrgScoreSummary[] = [
   { to_ha_tang: 'Việt Trì', scoreBefore: 73, scoreAfter: 91 },
   { to_ha_tang: 'Vĩnh Yên', scoreBefore: 71, scoreAfter: 89 },
+  { to_ha_tang: 'Phúc Yên', scoreBefore: 70, scoreAfter: 88 },
+  { to_ha_tang: 'Tam Đảo', scoreBefore: 67, scoreAfter: 86 },
+  { to_ha_tang: 'Thanh Ba', scoreBefore: 65, scoreAfter: 85 },
+  { to_ha_tang: 'Thanh Sơn', scoreBefore: 62, scoreAfter: 83 },
   { to_ha_tang: 'Hòa Bình', scoreBefore: 64, scoreAfter: 84 },
   { to_ha_tang: 'Lương Sơn', scoreBefore: 68, scoreAfter: 87 },
-  { to_ha_tang: 'Thanh Ba', scoreBefore: 65, scoreAfter: 85 },
-  { to_ha_tang: 'Thanh Sơn', scoreBefore: 62, scoreAfter: 83 }
+  { to_ha_tang: 'Tân Lạc', scoreBefore: 63, scoreAfter: 82 }
 ];
 
 export const INITIAL_STATIONS: Station[] = [

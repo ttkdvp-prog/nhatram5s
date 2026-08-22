@@ -26,6 +26,7 @@ import {
 import { toLh3Url, extractDriveFileId, isDriveOrLh3Url, compressImageFile, safeLocalStorageSet } from '../utils/imageHelper';
 import { uploadImageToGoogleDrive } from '../services/api';
 import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
+import { CANONICAL_ORGS } from '../data/initialData';
 
 interface SurveyFormViewProps {
   stations: Station[];
@@ -212,26 +213,8 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
     ratingColor = 'bg-amber-100 text-amber-800 border-amber-300';
   }
 
-  const availableOrgs = Array.from(
-    new Set([
-      'Tổ Hạ tầng Việt Trì',
-      'Tổ Hạ tầng Vĩnh Yên',
-      'Tổ Hạ tầng Hòa Bình',
-      'Tổ Hạ tầng Lương Sơn',
-      'Tổ Hạ tầng Thanh Ba',
-      'Tổ Hạ tầng Thanh Sơn',
-      'Tổ Hạ tầng Đoan Hùng',
-      'Tổ Hạ tầng Cẩm Khê',
-      'Tổ Hạ tầng Phù Ninh',
-      'Tổ Hạ tầng Lâm Thao',
-      'Tổ Hạ tầng Tam Nông',
-      'Tổ Hạ tầng Tân Sơn',
-      'Tổ Hạ tầng Yên Lập',
-      'Tổ Hạ tầng Thanh Thủy',
-      'Tổ Hạ tầng Hạ Hòa',
-      ...stations.map((s) => s.to_ha_tang).filter(Boolean)
-    ])
-  ).sort();
+  const liveOrgs = Array.from(new Set(stations.map((s) => s.to_ha_tang).filter(Boolean)));
+  const availableOrgs = liveOrgs.length > 0 ? liveOrgs.sort() : CANONICAL_ORGS;
 
   const currentCleanOrg = toHaTang.replace('Tổ Hạ tầng ', '').trim();
   const filteredStations = stations.filter(

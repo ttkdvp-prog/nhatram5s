@@ -5,6 +5,7 @@ import { Search, Download, Filter, Eye, Camera, Upload, Image } from 'lucide-rea
 import { parseSheetPhotoUrls } from '../utils/imageHelper';
 import { PhotoThumbnail } from './PhotoThumbnail';
 import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
+import { CANONICAL_ORGS } from '../data/initialData';
 
 interface StationRecordsViewProps {
   stations: Station[];
@@ -35,11 +36,12 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
     XLSX.writeFile(workbook, `Danh_Sach_Ho_So_5S_Nha_Tram_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  const availableOrgs = Array.from(new Set([
-    'Tổ Hạ tầng Việt Trì', 'Tổ Hạ tầng Vĩnh Yên', 'Tổ Hạ tầng Hòa Bình', 'Tổ Hạ tầng Lương Sơn', 'Tổ Hạ tầng Thanh Ba', 'Tổ Hạ tầng Thanh Sơn',
+  const liveOrgs = Array.from(new Set([
     ...records.map(r => r.to_ha_tang).filter(Boolean),
     ...stations.map(s => s.to_ha_tang).filter(Boolean)
-  ])).sort();
+  ]));
+
+  const availableOrgs = liveOrgs.length > 0 ? liveOrgs.sort() : CANONICAL_ORGS;
 
   const handleOpenLightbox = (photos: LightboxPhoto[], index = 0) => {
     setLightboxPhotos(photos);
