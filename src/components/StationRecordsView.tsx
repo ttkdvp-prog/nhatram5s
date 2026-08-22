@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Station, SurveyRecord } from '../types';
 import * as XLSX from 'xlsx';
-import { Search, Download, Filter, Eye, Building2, Calendar, CheckCircle2, AlertTriangle, Camera, Upload, X, Copy, ExternalLink, Image } from 'lucide-react';
-import { toLh3Url, parseSheetPhotoUrls, extractDriveFileId } from '../utils/imageHelper';
+import { Search, Download, Filter, Eye, Camera, Upload, Image } from 'lucide-react';
+import { parseSheetPhotoUrls } from '../utils/imageHelper';
+import { PhotoThumbnail } from './PhotoThumbnail';
+import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
 
 interface StationRecordsViewProps {
   stations: Station[];
@@ -13,7 +15,9 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrg, setSelectedOrg] = useState('Tất cả');
   const [selectedDetail, setSelectedDetail] = useState<SurveyRecord | null>(null);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [lightboxPhotos, setLightboxPhotos] = useState<LightboxPhoto[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   const filteredRecords = records.filter((rec) => {
     const matchesSearch =
@@ -36,6 +40,12 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
     ...records.map(r => r.to_ha_tang).filter(Boolean),
     ...stations.map(s => s.to_ha_tang).filter(Boolean)
   ])).sort();
+
+  const handleOpenLightbox = (photos: LightboxPhoto[], index = 0) => {
+    setLightboxPhotos(photos);
+    setLightboxIndex(index);
+    setIsLightboxOpen(true);
+  };
 
   return (
     <div className="space-y-6 pb-10 animate-in fade-in duration-300">
@@ -107,8 +117,10 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
               {filteredRecords.map((row) => {
                 const beforeImgs = parseSheetPhotoUrls(row.anh_truoc_list || row.anh_truoc_url);
                 const afterImgs = parseSheetPhotoUrls(row.anh_sau_list || row.anh_sau_url);
-                const totalImgs = beforeImgs.length + afterImgs.length;
-                const thumb = afterImgs[0] || beforeImgs[0];
+                const allPhotos: LightboxPhoto[] = [
+                  ...beforeImgs.map((u, i) => ({ url: u, title: `Ảnh trước 5S #${i + 1} - ${row.ma_nha_tram}`, type: 'Trước' as const, stationCode: row.ma_nha_tram })),
+                  ...afterImgs.map((u, i) => ({ url: u, title: `Ảnh sau 5S #${i + 1} - ${row.ma_nha_tram}`, type: 'Sau' as const, stationCode: row.ma_nha_tram }))
+                ];
 
                 return (
                   <tr key={row.id_ho_so} className="hover:bg-slate-50/80 transition-colors">
@@ -117,18 +129,16 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
                     <td className="py-4 px-6 font-semibold text-slate-800">{row.ten_nha_tram}</td>
                     <td className="py-4 px-6 text-slate-600">{row.to_ha_tang}</td>
                     <td className="py-4 px-6">
-                      {thumb ? (
-                        <div
-                          onClick={() => setPreviewImage(thumb)}
-                          className="flex items-center space-x-2 cursor-pointer group"
-                        >
-                          <img
-                            src={toLh3Url(thumb)}
-                            alt="Ảnh trạm"
-                            className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-xs group-hover:scale-105 transition-transform"
+                      {allPhotos.length > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <PhotoThumbnail
+                            urls={allPhotos.map(p => p.url)}
+                            stationCode={row.ma_nha_tram}
+                            className="w-10 h-10 rounded-lg shadow-xs"
+                            showCountBadge={true}
                           />
                           <span className="text-[11px] font-semibold text-slate-500">
-                            {totalImgs} ảnh
+                            {allPhotos.length} ảnh
                           </span>
                         </div>
                       ) : (
@@ -208,20 +218,18 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
                   <div>
                     <div className="text-xs font-bold text-sky-800 mb-2 flex items-center gap-1.5">
                       <Camera className="w-3.5 h-3.5 text-sky-600" />
-                      <span>Ảnh hiện trạng trước 5S ({beforeList.length})</span>
+                      <span>Ảnh hiện trạng trước 5S ({beforeList.length}) - Bấm vào ảnh để phóng to</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-2.5">
                       {beforeList.map((url, idx) => (
-                        <div
+                        <PhotoThumbnail
                           key={idx}
-                          onClick={() => setPreviewImage(url)}
-                          className="aspect-square rounded-xl overflow-hidden border border-slate-200 cursor-pointer hover:scale-105 transition-transform bg-slate-100 relative group"
-                        >
-                          <img src={toLh3Url(url)} alt={`Ảnh trước ${idx + 1}`} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                            <Eye className="w-4 h-4" />
-                          </div>
-                        </div>
+                          url={url}
+                          type="Trước"
+                          title={`Ảnh trước 5S #${idx + 1} - ${selectedDetail.ma_nha_tram}`}
+                          stationCode={selectedDetail.ma_nha_tram}
+                          className="w-full aspect-square rounded-xl"
+                        />
                       ))}
                     </div>
                   </div>
@@ -235,20 +243,18 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
                   <div>
                     <div className="text-xs font-bold text-emerald-800 mb-2 flex items-center gap-1.5">
                       <Upload className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Ảnh kết quả sau 5S ({afterList.length})</span>
+                      <span>Ảnh kết quả sau 5S ({afterList.length}) - Bấm vào ảnh để phóng to</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-2.5">
                       {afterList.map((url, idx) => (
-                        <div
+                        <PhotoThumbnail
                           key={idx}
-                          onClick={() => setPreviewImage(url)}
-                          className="aspect-square rounded-xl overflow-hidden border border-slate-200 cursor-pointer hover:scale-105 transition-transform bg-slate-100 relative group"
-                        >
-                          <img src={toLh3Url(url)} alt={`Ảnh sau ${idx + 1}`} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                            <Eye className="w-4 h-4" />
-                          </div>
-                        </div>
+                          url={url}
+                          type="Sau"
+                          title={`Ảnh sau 5S #${idx + 1} - ${selectedDetail.ma_nha_tram}`}
+                          stationCode={selectedDetail.ma_nha_tram}
+                          className="w-full aspect-square rounded-xl"
+                        />
                       ))}
                     </div>
                   </div>
@@ -264,37 +270,13 @@ export const StationRecordsView: React.FC<StationRecordsViewProps> = ({ stations
         </div>
       )}
 
-      {/* Full-screen Image Preview */}
-      {previewImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="relative max-w-4xl w-full bg-slate-900 rounded-3xl overflow-hidden p-4 border border-slate-800 shadow-2xl flex flex-col items-center space-y-3">
-            <div className="w-full flex items-center justify-between pb-2 border-b border-slate-800">
-              <span className="text-xs font-bold text-sky-400 bg-sky-950/60 border border-sky-800 px-2.5 py-1 rounded-lg">
-                Link LH3 Google CDN
-              </span>
-              <button
-                type="button"
-                onClick={() => setPreviewImage(null)}
-                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-full transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="w-full flex items-center justify-center p-2">
-              <img
-                src={toLh3Url(previewImage)}
-                alt="Xem ảnh phóng to"
-                className="max-h-[65vh] w-auto max-w-full object-contain rounded-2xl"
-              />
-            </div>
-
-            <div className="w-full bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300 break-all select-all">
-              {toLh3Url(previewImage)}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Lightbox Modal */}
+      <ImageLightbox
+        isOpen={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+        photos={lightboxPhotos}
+        initialIndex={lightboxIndex}
+      />
     </div>
   );
 };

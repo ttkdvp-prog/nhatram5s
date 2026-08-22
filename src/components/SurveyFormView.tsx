@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { toLh3Url, extractDriveFileId, isDriveOrLh3Url } from '../utils/imageHelper';
 import { uploadImageToGoogleDrive } from '../services/api';
+import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
 
 interface SurveyFormViewProps {
   stations: Station[];
@@ -125,10 +126,32 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
   const afterFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Modals state
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [lightboxPhotos, setLightboxPhotos] = useState<LightboxPhoto[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const openBeforeLightbox = (index: number) => {
+    const photos: LightboxPhoto[] = [
+      ...beforePhotos.map((u, i) => ({ url: u, title: `Ảnh hiện trạng trước 5S #${i + 1}`, type: 'Trước' as const, stationCode: selectedStationCode })),
+      ...afterPhotos.map((u, i) => ({ url: u, title: `Ảnh kết quả sau 5S #${i + 1}`, type: 'Sau' as const, stationCode: selectedStationCode }))
+    ];
+    setLightboxPhotos(photos);
+    setLightboxIndex(index);
+    setIsLightboxOpen(true);
+  };
+
+  const openAfterLightbox = (index: number) => {
+    const photos: LightboxPhoto[] = [
+      ...beforePhotos.map((u, i) => ({ url: u, title: `Ảnh hiện trạng trước 5S #${i + 1}`, type: 'Trước' as const, stationCode: selectedStationCode })),
+      ...afterPhotos.map((u, i) => ({ url: u, title: `Ảnh kết quả sau 5S #${i + 1}`, type: 'Sau' as const, stationCode: selectedStationCode }))
+    ];
+    setLightboxPhotos(photos);
+    setLightboxIndex(beforePhotos.length + index);
+    setIsLightboxOpen(true);
+  };
 
   // Calculate totals
   const totalBefore = s1Before + s2Before + s3Before + s4Before + s5Before;
@@ -618,9 +641,11 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                               <img
                                 src={toLh3Url(url)}
                                 alt={`Ảnh hiện trạng ${idx + 1}`}
+                                referrerPolicy="no-referrer"
+                                crossOrigin="anonymous"
                                 onError={() => handleImageError(url)}
                                 className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
-                                onClick={() => setPreviewImage(url)}
+                                onClick={() => openBeforeLightbox(idx)}
                               />
                               {/* Drive LH3 Badge */}
                               {isDrive && (
@@ -642,7 +667,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                               </button>
                               {/* Bottom Overlay Info */}
                               <div
-                                onClick={() => setPreviewImage(url)}
+                                onClick={() => openBeforeLightbox(idx)}
                                 className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 to-transparent p-1.5 flex items-center justify-between text-white text-[10px] cursor-pointer"
                               >
                                 <span className="truncate font-medium">Ảnh {idx + 1}</span>
@@ -697,9 +722,11 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                               <img
                                 src={toLh3Url(url)}
                                 alt={`Ảnh sau cải thiện ${idx + 1}`}
+                                referrerPolicy="no-referrer"
+                                crossOrigin="anonymous"
                                 onError={() => handleImageError(url)}
                                 className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
-                                onClick={() => setPreviewImage(url)}
+                                onClick={() => openAfterLightbox(idx)}
                               />
                               {/* Drive LH3 Badge */}
                               {isDrive && (
@@ -721,7 +748,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                               </button>
                               {/* Bottom Overlay Info */}
                               <div
-                                onClick={() => setPreviewImage(url)}
+                                onClick={() => openAfterLightbox(idx)}
                                 className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 to-transparent p-1.5 flex items-center justify-between text-white text-[10px] cursor-pointer"
                               >
                                 <span className="truncate font-medium">Ảnh {idx + 1}</span>
@@ -862,76 +889,13 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
         </div>
       </div>
 
-      {/* FULL-SCREEN IMAGE PREVIEW & LH3 LINK DETAILS MODAL */}
-      {previewImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="relative max-w-4xl w-full bg-slate-900 rounded-3xl overflow-hidden p-4 border border-slate-800 shadow-2xl flex flex-col items-center space-y-3">
-            <div className="w-full flex items-center justify-between pb-2 border-b border-slate-800">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold text-sky-400 bg-sky-950/60 border border-sky-800 px-2.5 py-1 rounded-lg">
-                  Link LH3 Google CDN
-                </span>
-                {extractDriveFileId(previewImage) && (
-                  <a
-                    href={`https://drive.google.com/file/d/${extractDriveFileId(previewImage)}/view?usp=sharing`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-xs text-slate-300 hover:text-white hover:underline bg-slate-800 px-2.5 py-1 rounded-lg transition-colors"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>Mở trên Google Drive</span>
-                  </a>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(toLh3Url(previewImage))}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer"
-                >
-                  {copiedUrl ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedUrl ? 'Đã sao chép!' : 'Sao chép link LH3'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    removePhotoByUrl(previewImage);
-                    setPreviewImage(null);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Xóa ảnh</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPreviewImage(null)}
-                  className="p-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-full transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Image display */}
-            <div className="w-full flex items-center justify-center p-2">
-              <img
-                src={toLh3Url(previewImage)}
-                alt="Xem ảnh phóng to"
-                className="max-h-[65vh] w-auto max-w-full object-contain rounded-2xl"
-              />
-            </div>
-
-            {/* Bottom link bar */}
-            <div className="w-full bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300 break-all select-all">
-              {toLh3Url(previewImage)}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* FULL-SCREEN IMAGE LIGHTBOX MODAL */}
+      <ImageLightbox
+        isOpen={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+        photos={lightboxPhotos}
+        initialIndex={lightboxIndex}
+      />
 
       {/* PASTE GOOGLE DRIVE LINK MODAL */}
       {isPasteModalOpen && (

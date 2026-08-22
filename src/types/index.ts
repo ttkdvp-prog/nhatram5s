@@ -71,6 +71,8 @@ export interface Recommendation {
   han_xu_ly: string;
   trang_thai: 'Mới tạo' | 'Đã tiếp nhận' | 'Đang xử lý' | 'Hoàn thành' | string;
   ngay_hoan_thanh?: string;
+  anh_truoc_url?: string;
+  anh_sau_url?: string;
   qua_han: string;
   so_ngay_qua_han: number;
   nguoi_tao: string;
