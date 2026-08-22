@@ -37,7 +37,7 @@ function doGet(e) {
   if (!action) {
     try {
       return HtmlService.createHtmlOutputFromFile('Index')
-        .setTitle('Nhà Trạm 5S - Trung tâm Hạ tầng VNPT Phú Thọ')
+        .setTitle('Nhà Trạm 5S - Trung tâm Hạ tầng - VNPT Phú Thọ')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1')
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     } catch (err) {

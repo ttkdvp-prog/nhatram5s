@@ -1326,7 +1326,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
             </button>
 
             <div>
-              <span className="text-xs font-extrabold text-vnpt-700 uppercase tracking-widest">VNPT TRUNG TÂM HẠ TẦNG</span>
+              <span className="text-xs font-extrabold text-vnpt-700 uppercase tracking-widest">TRUNG TÂM HẠ TẦNG - VNPT PHÚ THỌ</span>
               <h3 className="text-lg font-black text-slate-900 mt-1">MÃ QR HỒ SƠ NHÀ TRẠM</h3>
               <p className="text-xs text-slate-500 mt-0.5">{selectedStationName} ({selectedStationCode})</p>
             </div>

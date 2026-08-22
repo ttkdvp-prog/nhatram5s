@@ -232,7 +232,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             DASHBOARD NHÀ TRẠM 5S
           </h2>
           <p className="text-sm text-sky-100 mt-1 font-medium">
-            Theo dõi cải thiện điều kiện lao động tại Trung tâm Hạ tầng VNPT Phú Thọ
+            Theo dõi cải thiện điều kiện lao động tại Trung tâm Hạ tầng - VNPT Phú Thọ
           </p>
         </div>
         <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />

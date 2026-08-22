@@ -81,7 +81,7 @@ export const Layout: React.FC = () => {
 
             <div className="hidden sm:block">
               <span className="text-xs font-extrabold text-vnpt-700 uppercase tracking-widest">
-                VNPT TRUNG TÂM HẠ TẦNG PHÚ THỌ
+                TRUNG TÂM HẠ TẦNG - VNPT PHÚ THỌ
               </span>
             </div>
           </div>
