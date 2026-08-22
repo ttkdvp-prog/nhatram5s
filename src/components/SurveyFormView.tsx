@@ -212,6 +212,46 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
     ratingColor = 'bg-amber-100 text-amber-800 border-amber-300';
   }
 
+  const availableOrgs = Array.from(
+    new Set([
+      'Tổ Hạ tầng Việt Trì',
+      'Tổ Hạ tầng Vĩnh Yên',
+      'Tổ Hạ tầng Hòa Bình',
+      'Tổ Hạ tầng Lương Sơn',
+      'Tổ Hạ tầng Thanh Ba',
+      'Tổ Hạ tầng Thanh Sơn',
+      'Tổ Hạ tầng Đoan Hùng',
+      'Tổ Hạ tầng Cẩm Khê',
+      'Tổ Hạ tầng Phù Ninh',
+      'Tổ Hạ tầng Lâm Thao',
+      'Tổ Hạ tầng Tam Nông',
+      'Tổ Hạ tầng Tân Sơn',
+      'Tổ Hạ tầng Yên Lập',
+      'Tổ Hạ tầng Thanh Thủy',
+      'Tổ Hạ tầng Hạ Hòa',
+      ...stations.map((s) => s.to_ha_tang).filter(Boolean)
+    ])
+  ).sort();
+
+  const currentCleanOrg = toHaTang.replace('Tổ Hạ tầng ', '').trim();
+  const filteredStations = stations.filter(
+    (s) => !currentCleanOrg || currentCleanOrg === 'Tất cả' || s.to_ha_tang.includes(currentCleanOrg)
+  );
+
+  const handleOrgChange = (newOrg: string) => {
+    const cleanOrg = newOrg.replace('Tổ Hạ tầng ', '').trim();
+    setToHaTang(cleanOrg);
+    const validStations = stations.filter(
+      (s) => !cleanOrg || cleanOrg === 'Tất cả' || s.to_ha_tang.includes(cleanOrg)
+    );
+    if (validStations.length > 0) {
+      const isStillValid = validStations.some((s) => s.ma_nha_tram === selectedStationCode);
+      if (!isStillValid) {
+        handleStationChange(validStations[0].ma_nha_tram);
+      }
+    }
+  };
+
   const handleStationChange = (code: string) => {
     setSelectedStationCode(code);
     const found = stations.find(s => s.ma_nha_tram === code);
@@ -483,13 +523,33 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Mã nhà trạm</label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  Tổ Hạ tầng <span className="text-vnpt-600 font-bold">*</span>
+                </label>
+                <select
+                  value={toHaTang ? (toHaTang.startsWith('Tổ Hạ tầng') ? toHaTang : `Tổ Hạ tầng ${toHaTang}`) : 'Tổ Hạ tầng Việt Trì'}
+                  onChange={(e) => handleOrgChange(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-vnpt-500 text-sm cursor-pointer"
+                >
+                  <option value="Tất cả">Tất cả các Tổ Hạ tầng</option>
+                  {availableOrgs.map((org) => (
+                    <option key={org} value={org}>
+                      {org.startsWith('Tổ Hạ tầng') ? org : `Tổ Hạ tầng ${org}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  Mã nhà trạm <span className="text-vnpt-600 font-bold">*</span>
+                </label>
                 <select
                   value={selectedStationCode}
                   onChange={(e) => handleStationChange(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-vnpt-500 text-sm"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-vnpt-500 text-sm cursor-pointer"
                 >
-                  {stations.map((s) => (
+                  {(filteredStations.length > 0 ? filteredStations : stations).map((s) => (
                     <option key={s.id_nha_tram} value={s.ma_nha_tram}>
                       {s.ma_nha_tram} - {s.ten_nha_tram}
                     </option>
@@ -504,17 +564,6 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                   readOnly
                   value={selectedStationName}
                   className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl font-semibold text-slate-700 text-sm cursor-not-allowed"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Tổ Hạ tầng</label>
-                <input
-                  type="text"
-                  value={toHaTang}
-                  onChange={(e) => setToHaTang(e.target.value)}
-                  placeholder="Việt Trì / Vĩnh Yên..."
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-vnpt-500 text-sm"
                 />
               </div>
 
