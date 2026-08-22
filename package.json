@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "deploy:backend": "node scripts/redeploy_appscript.js",
+    "redeploy": "node scripts/redeploy_appscript.js",
     "clasp:login": "clasp login",
     "clasp:push": "clasp push",
     "clasp:deploy": "clasp deploy"
