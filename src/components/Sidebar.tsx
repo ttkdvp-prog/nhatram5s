@@ -18,7 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const menuItems = [
     { id: 'overview' as ActiveTab, label: 'Tổng quan', icon: LayoutDashboard },
-    { id: 'survey' as ActiveTab, label: 'Khảo sát 5S', icon: ClipboardCheck },
+    { id: 'survey' as ActiveTab, label: 'Triển khai 5S', icon: ClipboardCheck },
     { id: 'records' as ActiveTab, label: 'Hồ sơ nhà trạm', icon: FolderKanban },
     { id: 'photos' as ActiveTab, label: 'Thống kê ảnh 5S', icon: Camera },
     { id: 'recommendations' as ActiveTab, label: 'Kiến nghị', icon: AlertTriangle },

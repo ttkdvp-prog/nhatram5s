@@ -494,7 +494,7 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
-            <span>Phiếu khảo sát và đánh giá Nhà trạm 5S</span>
+            <span>Phiếu triển khai và đánh giá Nhà trạm 5S</span>
             {initialRecord && (
               <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-100 text-blue-800">
                 Sửa: {initialRecord.id_ho_so}
