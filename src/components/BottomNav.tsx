@@ -8,11 +8,11 @@ interface BottomNavProps {
 }
 
 const navItems = [
-  { id: 'overview' as ActiveTab, label: 'Tổng quan', icon: LayoutDashboard },
   { id: 'survey' as ActiveTab, label: 'Triển khai', icon: ClipboardCheck },
   { id: 'records' as ActiveTab, label: 'Hồ sơ', icon: FolderKanban },
   { id: 'photos' as ActiveTab, label: 'Ảnh 5S', icon: Camera },
   { id: 'reports' as ActiveTab, label: 'Báo cáo', icon: BarChart3 },
+  { id: 'overview' as ActiveTab, label: 'Tổng quan', icon: LayoutDashboard },
 ];
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab }) => {
