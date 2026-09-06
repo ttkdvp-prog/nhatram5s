@@ -631,19 +631,6 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                 />
               </div>
 
-              {/* 7. Người khảo sát */}
-              <div className="sm:col-span-2 space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-500">
-                  Người khảo sát (Đoàn kiểm tra) <span className="text-vnpt-600 font-bold">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={surveyor}
-                  onChange={(e) => setSurveyor(e.target.value)}
-                  placeholder="Nhập tên người khảo sát hoặc chọn gợi ý..."
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-vnpt-500 text-sm"
-                />
-              </div>
             </div>
           </div>
 
