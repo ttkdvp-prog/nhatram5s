@@ -4,7 +4,6 @@ import { DashboardView } from './DashboardView';
 import { SurveyFormView } from './SurveyFormView';
 import { StationRecordsView } from './StationRecordsView';
 import { PhotoProgressView } from './PhotoProgressView';
-import { RecommendationsView } from './RecommendationsView';
 import { ReportsView } from './ReportsView';
 import { fetchDashboardData, saveSurveyForm } from '../services/api';
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary } from '../types';
@@ -119,14 +118,6 @@ export const Layout: React.FC = () => {
               records={records}
               onNavigateToSurvey={navigateToSurvey}
             />
-          )}
-
-          {activeTab === 'recommendations' && (
-            <RecommendationsView recommendations={recommendations} />
-          )}
-
-          {activeTab === 'reinspection' && (
-            <RecommendationsView recommendations={recommendations} />
           )}
 
           {activeTab === 'reports' && (
