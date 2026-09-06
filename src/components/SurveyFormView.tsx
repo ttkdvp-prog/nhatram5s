@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Station, SurveyRecord } from '../types';
-import { QRCodeSVG } from 'qrcode.react';
 import {
   Save,
   Camera,
@@ -10,7 +9,6 @@ import {
   Sparkles,
   Upload,
   X,
-  QrCode,
   Download,
   Eye,
   Trash2,
@@ -189,7 +187,6 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [lightboxPhotos, setLightboxPhotos] = useState<LightboxPhoto[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const openBeforeLightbox = (index: number) => {
@@ -1146,67 +1143,6 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
             </div>
           </div>
 
-          {/* Card 3: Theo dõi duy trì */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-3">
-            <h3 className="font-bold text-slate-800 text-base mb-2">Theo dõi duy trì</h3>
-
-            <div className="flex justify-between items-center text-xs py-1.5 border-b border-slate-100">
-              <span className="text-slate-500">Ngày tái kiểm tra</span>
-              <span className="font-bold text-slate-800">27/08/2026</span>
-            </div>
-
-            <div className="flex justify-between items-center text-xs py-1.5 border-b border-slate-100">
-              <span className="text-slate-500">Trạng thái kiến nghị</span>
-              <span className="font-bold text-amber-600">Đang xử lý</span>
-            </div>
-
-            <div className="flex justify-between items-center text-xs py-1.5 border-b border-slate-100">
-              <span className="text-slate-500">Ảnh minh chứng Google Drive</span>
-              <span className="font-bold text-emerald-600">Đã nạp ({beforePhotos.length + afterPhotos.length} ảnh)</span>
-            </div>
-
-            <div className="flex justify-between items-center text-xs py-1.5">
-              <span className="text-slate-500">Mã QR hồ sơ</span>
-              <span className="font-bold text-emerald-600">Đã tạo</span>
-            </div>
-          </div>
-
-          {/* Card 4: Mobile Phone Frame Preview Widget */}
-          <div className="bg-slate-900 rounded-3xl p-5 text-white shadow-2xl space-y-4 border border-slate-800 relative overflow-hidden">
-            <div className="w-24 h-4 bg-slate-800 rounded-b-xl mx-auto -mt-5 mb-2" />
-
-            <div
-              onClick={() => setIsQrModalOpen(true)}
-              className="bg-white rounded-2xl p-4 text-slate-900 text-center space-y-3 cursor-pointer hover:scale-[1.02] transition-transform"
-              title="Nhấn để mở xem và tải Mã QR"
-            >
-              <div className="font-black text-sm text-vnpt-700 uppercase tracking-wide">
-                NHÀ TRẠM 5S
-              </div>
-              <div className="text-xs font-bold text-slate-600">
-                {selectedStationCode} • Điểm: {totalAfter}
-              </div>
-
-              <div className="flex justify-center py-2">
-                <QRCodeSVG
-                  value={`https://5s.tt-ht.vnpt.vn/survey/${selectedStationCode}`}
-                  size={110}
-                  level="H"
-                  includeMargin={true}
-                />
-              </div>
-              <div className="text-[10px] text-slate-400 font-medium">Chạm để xem phóng to & tải mã QR</div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsQrModalOpen(true)}
-              className="w-full py-3 bg-vnpt-500 hover:bg-vnpt-600 active:scale-95 text-white rounded-2xl font-extrabold text-xs tracking-wider uppercase shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <QrCode className="w-4 h-4" />
-              <span>CẬP NHẬT TẠI HIỆN TRƯỜNG</span>
-            </button>
-          </div>
         </div>
       </div>
 
@@ -1313,60 +1249,6 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
         </div>
       )}
 
-      {/* INTERACTIVE QR CODE MODAL */}
-      {isQrModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-5 border border-slate-100 text-center relative">
-            <button
-              type="button"
-              onClick={() => setIsQrModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-slate-100 text-slate-500 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div>
-              <span className="text-xs font-extrabold text-vnpt-700 uppercase tracking-widest">TRUNG TÂM HẠ TẦNG - VNPT PHÚ THỌ</span>
-              <h3 className="text-lg font-black text-slate-900 mt-1">MÃ QR HỒ SƠ NHÀ TRẠM</h3>
-              <p className="text-xs text-slate-500 mt-0.5">{selectedStationName} ({selectedStationCode})</p>
-            </div>
-
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block mx-auto shadow-inner">
-              <QRCodeSVG
-                value={`https://5s.tt-ht.vnpt.vn/survey/${selectedStationCode}`}
-                size={180}
-                level="H"
-                includeMargin={true}
-              />
-            </div>
-
-            <div className="bg-blue-50 p-3 rounded-xl border border-blue-200 text-xs text-blue-900 font-medium">
-              Dùng camera điện thoại quét mã QR tại nhà trạm để cập nhật điểm số & chụp ảnh minh chứng tại hiện trường.
-            </div>
-
-            <div className="flex space-x-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  beforeFileInputRef.current?.click();
-                  setIsQrModalOpen(false);
-                }}
-                className="flex-1 py-2.5 bg-vnpt-500 hover:bg-vnpt-600 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Camera className="w-4 h-4" />
-                <span>Chụp ảnh ngay</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsQrModalOpen(false)}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </form>
   );
 };
