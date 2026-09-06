@@ -94,9 +94,8 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
   const [s5After, setS5After] = useState<number>(initialRecord?.s5_sau ?? 14);
 
   // Risk and recommendations
-  const [riskContent, setRiskContent] = useState(initialRecord?.noi_dung_kien_nghi || '');
-  const [priority, setPriority] = useState(initialRecord?.muc_uu_tien || 'Cao');
-  const [assignedDept, setAssignedDept] = useState('Bộ phận chuyên môn');
+  const [riskContent] = useState(initialRecord?.noi_dung_kien_nghi || '');
+  const [priority] = useState(initialRecord?.muc_uu_tien || 'Cao');
   const [executionLog, setExecutionLog] = useState(initialRecord?.noi_dung_thuc_hien || '');
 
   // Photo state with LH3 URLs
@@ -831,24 +830,8 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-4">
             <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
-              <span>Nguy cơ/kiến nghị & Ảnh minh chứng Google Drive</span>
+              <span>Hình ảnh 5S</span>
             </h3>
-
-            {/* Alert banner */}
-            <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 space-y-2">
-              <input
-                type="text"
-                value={riskContent}
-                onChange={(e) => setRiskContent(e.target.value)}
-                placeholder="Nhập nội dung nguy cơ / kiến nghị phát hiện tại nhà trạm..."
-                className="w-full font-bold text-slate-800 text-sm bg-transparent border-none focus:outline-none placeholder-amber-700/50"
-              />
-              <div className="flex flex-wrap items-center text-xs text-amber-800 gap-4">
-                <span>Mức ưu tiên: <strong className="font-bold text-amber-900">{priority}</strong></span>
-                <span>•</span>
-                <span>Đầu mối: <strong className="font-bold text-amber-900">{assignedDept}</strong></span>
-              </div>
-            </div>
 
             {/* Action Buttons for Uploading to Drive */}
             <div className="flex flex-wrap gap-3 pt-2">
