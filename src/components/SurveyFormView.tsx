@@ -94,8 +94,8 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
   const [s5After, setS5After] = useState<number>(initialRecord?.s5_sau ?? 14);
 
   // Risk and recommendations
-  const [riskContent] = useState(initialRecord?.noi_dung_kien_nghi || '');
-  const [priority] = useState(initialRecord?.muc_uu_tien || 'Cao');
+  const [riskContent, setRiskContent] = useState(initialRecord?.noi_dung_kien_nghi || '');
+  const [priority, setPriority] = useState(initialRecord?.muc_uu_tien || 'Cao');
   const [executionLog, setExecutionLog] = useState(initialRecord?.noi_dung_thuc_hien || '');
 
   // Photo state with LH3 URLs
