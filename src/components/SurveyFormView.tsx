@@ -500,36 +500,6 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
           </h2>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleResetForm}
-            disabled={isSaving || isUploading}
-            className="px-4 py-3 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 border border-slate-300 disabled:opacity-50 cursor-pointer"
-            title="Xóa trắng để tạo phiếu khảo sát mới"
-          >
-            <RotateCcw className="w-4 h-4 text-slate-600" />
-            <span>LÀM MỚI PHIẾU</span>
-          </button>
-
-          <button
-            type="submit"
-            disabled={isUploading || isSaving}
-            className="px-6 py-3 bg-vnpt-500 hover:bg-vnpt-600 active:scale-95 text-white rounded-xl font-black text-sm uppercase tracking-wider shadow-lg shadow-vnpt-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
-                <span>ĐANG ĐỒNG BỘ GOOGLE SHEETS...</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                <span>LƯU PHIẾU VÀ ĐỒNG BỘ</span>
-              </>
-            )}
-          </button>
-        </div>
       </div>
 
       {/* Reset Notification */}
@@ -913,6 +883,38 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
               >
                 <Link2 className="w-4 h-4 text-slate-500" />
                 <span>Dán link Drive</span>
+              </button>
+            </div>
+
+            {/* Form Actions: Reset & Save */}
+            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 mt-2">
+              <button
+                type="button"
+                onClick={handleResetForm}
+                disabled={isSaving || isUploading}
+                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 border border-slate-300 disabled:opacity-50 cursor-pointer"
+                title="Xóa trắng để tạo phiếu khảo sát mới"
+              >
+                <RotateCcw className="w-4 h-4 text-slate-600" />
+                <span>LÀM MỚI PHIẾU</span>
+              </button>
+
+              <button
+                type="submit"
+                disabled={isUploading || isSaving}
+                className="px-6 py-3 bg-vnpt-500 hover:bg-vnpt-600 active:scale-95 text-white rounded-xl font-black text-sm uppercase tracking-wider shadow-lg shadow-vnpt-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>ĐANG ĐỒNG BỘ GOOGLE SHEETS...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>LƯU PHIẾU VÀ ĐỒNG BỘ</span>
+                  </>
+                )}
               </button>
             </div>
 
