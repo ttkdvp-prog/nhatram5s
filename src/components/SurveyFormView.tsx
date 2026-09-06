@@ -643,31 +643,6 @@ export const SurveyFormView: React.FC<SurveyFormViewProps> = ({
                   placeholder="Nhập tên người khảo sát hoặc chọn gợi ý..."
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-vnpt-500 text-sm"
                 />
-                {/* Gợi ý nhanh 1 chạm */}
-                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  <span className="text-[10px] font-semibold text-slate-400">Gợi ý nhanh:</span>
-                  <button
-                    type="button"
-                    onClick={() => setSurveyor(getDefaultSurveyor(toHaTang))}
-                    className="px-2 py-0.5 bg-slate-100 hover:bg-blue-50 hover:text-vnpt-700 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200 transition-colors cursor-pointer"
-                  >
-                    👤 {getDefaultSurveyor(toHaTang)}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSurveyor('Đoàn kiểm tra 5S Trung tâm')}
-                    className="px-2 py-0.5 bg-slate-100 hover:bg-blue-50 hover:text-vnpt-700 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200 transition-colors cursor-pointer"
-                  >
-                    🏢 Đoàn kiểm tra 5S Trung tâm
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSurveyor('Đầu mối ATVSV / Công đoàn')}
-                    className="px-2 py-0.5 bg-slate-100 hover:bg-blue-50 hover:text-vnpt-700 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200 transition-colors cursor-pointer"
-                  >
-                    🛡️ Đầu mối ATVSV / Công đoàn
-                  </button>
-                </div>
               </div>
             </div>
           </div>
