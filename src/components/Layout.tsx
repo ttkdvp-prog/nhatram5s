@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar, ActiveTab } from './Sidebar';
+import { BottomNav } from './BottomNav';
 import { DashboardView } from './DashboardView';
 import { SurveyFormView } from './SurveyFormView';
 import { StationRecordsView } from './StationRecordsView';
@@ -69,25 +70,27 @@ export const Layout: React.FC = () => {
       {/* Main Content Area */}
       <div className="lg:pl-64 flex-1 flex flex-col min-w-0">
         {/* Top Navbar */}
-        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 py-3.5 flex items-center justify-between shadow-xs">
-          <div className="flex items-center space-x-3">
+        <header
+          className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 py-3 flex items-center justify-between shadow-xs"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.6rem)' }}
+        >
+          <div className="flex items-center space-x-3 min-w-0">
             <button
               onClick={() => setIsOpenMobile(true)}
-              className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+              className="lg:hidden -ml-1.5 p-2 rounded-xl text-slate-600 active:bg-slate-100 transition-colors"
+              aria-label="Mở menu"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-5.5 h-5.5" />
             </button>
 
-            <div className="hidden sm:block">
-              <span className="text-xs font-extrabold text-vnpt-700 uppercase tracking-widest">
-                TRUNG TÂM HẠ TẦNG - VNPT PHÚ THỌ
-              </span>
-            </div>
+            <span className="text-[11px] sm:text-xs font-extrabold text-vnpt-700 uppercase tracking-widest truncate">
+              TRUNG TÂM HẠ TẦNG - VNPT PHÚ THỌ
+            </span>
           </div>
         </header>
 
         {/* Dynamic Route View Scope */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 max-w-7xl w-full mx-auto">
           {activeTab === 'overview' && (
             <DashboardView
               kpis={kpis}
@@ -125,6 +128,8 @@ export const Layout: React.FC = () => {
           )}
         </main>
       </div>
+
+      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );
 };

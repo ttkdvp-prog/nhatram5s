@@ -34,9 +34,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      <aside className={`fixed top-0 bottom-0 left-0 z-40 w-64 vnpt-gradient-sidebar text-white flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+      <aside className={`fixed top-0 bottom-0 left-0 z-50 w-72 max-w-[80vw] vnpt-gradient-sidebar text-white flex flex-col transition-transform duration-300 ease-in-out lg:w-64 lg:max-w-none lg:translate-x-0 ${
         isOpenMobile ? 'translate-x-0' : '-translate-x-full'
-      }`}>
+      }`}
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
         {/* Header Branding matching Image 1 & 2 */}
         <div className="p-6 border-b border-white/10">
           <div className="flex items-center space-x-3">
