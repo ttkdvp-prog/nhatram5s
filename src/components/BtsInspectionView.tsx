@@ -69,8 +69,16 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
   };
 
-  const getInspection = (idNhaTram: string): BtsInspection | undefined =>
-    btsInspections.find(b => b.id_nha_tram === idNhaTram);
+  // Tra cứu O(1) theo id_nha_tram thay vì Array.find() O(n) lặp lại cho từng trạm trên mỗi lần
+  // render - với ~1900 trạm, .find() lặp lại hàng ngàn lần mỗi khi có 1 ảnh cập nhật sẽ làm
+  // giao diện bị khựng/chậm hiển thị dù state đã cập nhật tức thời.
+  const inspectionByStation = useMemo(() => {
+    const map = new Map<string, BtsInspection>();
+    btsInspections.forEach(b => map.set(b.id_nha_tram, b));
+    return map;
+  }, [btsInspections]);
+
+  const getInspection = (idNhaTram: string): BtsInspection | undefined => inspectionByStation.get(idNhaTram);
 
   const handleOpenPicker = (station: Station, useCamera: boolean) => {
     pendingStationRef.current = station;
@@ -239,8 +247,9 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
       <div className="space-y-3">
         {orgGroups.map(([orgName, orgStations]) => {
           const isOrgOpen = expandedOrg === orgName;
-          const employees = getEmployeeGroups(orgStations);
-          const totalPosted = orgStations.filter(s => getInspection(s.id_nha_tram)?.trang_thai === 'Đã dán').length;
+          // Chỉ nhóm theo nhân viên khi tổ đang mở - không cần tính cho 8 tổ còn lại đang đóng
+          const employees = isOrgOpen ? getEmployeeGroups(orgStations) : [];
+          const totalPosted = orgStations.filter(s => inspectionByStation.get(s.id_nha_tram)?.trang_thai === 'Đã dán').length;
 
           return (
             <div key={orgName} className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
