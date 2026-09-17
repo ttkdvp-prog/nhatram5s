@@ -32,8 +32,16 @@ export const Layout: React.FC = () => {
   const recentBtsUpdatesRef = useRef<Map<string, number>>(new Map());
   const RECENT_BTS_UPDATE_TTL_MS = 6000;
 
+  // Chặn không cho 2 lần gọi loadData chồng lên nhau - backend Apps Script đôi khi phản hồi
+  // chậm (vài giây đến hàng chục giây khi tải), nếu không chặn thì vòng lặp 3s cứ bắn thêm
+  // request mới trong khi request cũ chưa xong, khiến các request dồn ứ và ngày càng chậm hơn.
+  const isLoadingRef = useRef(false);
+
   const loadData = async (silent = false) => {
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
     if (!silent) setLoading(true);
+    try {
     const data = await fetchDashboardData();
     setKpis(data.kpis);
     setOrgScores(data.orgScores);
@@ -68,7 +76,10 @@ export const Layout: React.FC = () => {
       return merged;
     });
 
-    if (!silent) setLoading(false);
+    } finally {
+      if (!silent) setLoading(false);
+      isLoadingRef.current = false;
+    }
   };
 
   const handleBtsInspectionUpdated = (updated: BtsInspection) => {
@@ -81,10 +92,12 @@ export const Layout: React.FC = () => {
 
   useEffect(() => {
     loadData(false);
-    // Vòng lặp đồng bộ tức thì 3 giây với Google Sheets
+    // Vòng lặp đồng bộ với Google Sheets - giãn ra 8s (thay vì 3s) vì backend Apps Script đọc
+    // sheet ~1900 dòng có thể mất vài giây; kết hợp với isLoadingRef ở trên để không bao giờ
+    // có 2 request chồng nhau làm dồn ứ và ngày càng chậm dần theo thời gian dùng.
     const timer = setInterval(() => {
       loadData(true);
-    }, 3000);
+    }, 8000);
     return () => clearInterval(timer);
   }, []);
 

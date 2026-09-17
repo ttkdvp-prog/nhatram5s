@@ -71,13 +71,17 @@ function doGet(e) {
     } else if (action === 'getBtsInspections') {
       result = getBtsInspectionsData();
     } else if (action === 'getAll') {
+      // Đọc mỗi sheet đúng 1 lần rồi dùng lại cho stats, thay vì đọc lại 2 lần (STATIONS/RECORDS)
+      // như trước đây - sheet DM_NHA_TRAM có ~1900 dòng nên đọc trùng gây chậm rõ rệt.
+      // Sheet ANH_MINH_CHUNG (photos) bị bỏ khỏi getAll vì frontend không dùng đến.
+      var allStations = getSheetData(SHEET_NAMES.STATIONS);
+      var allRecords = getSheetData(SHEET_NAMES.RECORDS);
       result = {
-        stations: getSheetData(SHEET_NAMES.STATIONS),
-        records: getSheetData(SHEET_NAMES.RECORDS),
+        stations: allStations,
+        records: allRecords,
         recommendations: getSheetData(SHEET_NAMES.RECOMMENDATIONS),
-        photos: getSheetData(SHEET_NAMES.PHOTOS),
         btsInspections: getBtsInspectionsData(),
-        stats: getStatsData()
+        stats: getStatsData(allStations, allRecords)
       };
     } else if (action === 'initData') {
       initSampleData();
@@ -761,11 +765,12 @@ function handleUpdateBtsExpiryStatus(data) {
 
 /**
  * Tính toán thống kê KPI động từ Sheet HOSO_5S và DM_NHA_TRAM
+ * Nhận sẵn dữ liệu đã đọc (stations/records) thay vì tự đọc lại sheet lần nữa - tránh đọc trùng
+ * 2 lần trong cùng 1 request getAll (rất tốn thời gian với sheet nhà trạm ~1900 dòng).
  */
-function getStatsData() {
-  var records = getSheetData(SHEET_NAMES.RECORDS);
-  var recs = getSheetData(SHEET_NAMES.RECOMMENDATIONS);
-  var stations = getSheetData(SHEET_NAMES.STATIONS);
+function getStatsData(preloadedStations, preloadedRecords) {
+  var records = preloadedRecords || getSheetData(SHEET_NAMES.RECORDS);
+  var stations = preloadedStations || getSheetData(SHEET_NAMES.STATIONS);
 
   var totalPlanned = Math.max(stations.length, 120);
   var surveyed = records.length || 82;
