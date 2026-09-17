@@ -150,12 +150,12 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
     }
   };
 
-  const handleRemovePhoto = async (station: Station, photoUrl: string) => {
+  const handleRemovePhoto = async (station: Station, inspection: BtsInspection, photoUrl: string) => {
     const key = `${station.id_nha_tram}__${photoUrl}`;
     setRemovingPhotoKey(key);
     try {
-      const updated = await removeBtsInspectionPhoto(station.id_nha_tram, photoUrl);
-      if (updated) onUpdated(updated);
+      const updated = await removeBtsInspectionPhoto(inspection, photoUrl);
+      onUpdated(updated);
     } catch (err) {
       console.error('Lỗi xóa ảnh niêm yết:', err);
     } finally {
@@ -341,18 +341,18 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                                   </div>
 
                                   {photos.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 pl-6.5">
+                                    <div className="flex flex-wrap gap-3 pl-6.5">
                                       {photos.map((url, idx) => {
                                         const removeKey = `${station.id_nha_tram}__${url}`;
                                         const isRemoving = removingPhotoKey === removeKey;
                                         return (
-                                          <div key={idx} className="relative group shrink-0">
+                                          <div key={idx} className="relative shrink-0 w-16 h-16">
                                             {isPdfUrl(url) ? (
                                               <a
                                                 href={url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="w-14 h-14 rounded-lg border border-rose-200 bg-rose-50 flex flex-col items-center justify-center gap-0.5 hover:bg-rose-100 transition-colors"
+                                                className="w-16 h-16 rounded-lg border border-rose-200 bg-rose-50 flex flex-col items-center justify-center gap-0.5 hover:bg-rose-100 transition-colors"
                                                 title="Mở file PDF niêm yết"
                                               >
                                                 <FileText className="w-5 h-5 text-rose-500" />
@@ -362,7 +362,7 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                                               <button
                                                 type="button"
                                                 onClick={() => openLightbox(station, photos, idx)}
-                                                className="w-14 h-14 rounded-lg border border-slate-200 overflow-hidden hover:ring-2 hover:ring-vnpt-400 transition-all cursor-pointer"
+                                                className="w-16 h-16 rounded-lg border border-slate-200 overflow-hidden hover:ring-2 hover:ring-vnpt-400 transition-all cursor-pointer"
                                                 title="Xem ảnh niêm yết"
                                               >
                                                 <img src={url} alt="Ảnh niêm yết kiểm định" className="w-full h-full object-cover" />
@@ -371,11 +371,14 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                                             <button
                                               type="button"
                                               disabled={isRemoving}
-                                              onClick={() => handleRemovePhoto(station, url)}
-                                              className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 rounded-full bg-slate-700/90 text-white flex items-center justify-center hover:bg-rose-600 active:scale-95 transition-all cursor-pointer disabled:opacity-50 shadow-sm"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (inspection) handleRemovePhoto(station, inspection, url);
+                                              }}
+                                              className="absolute top-0.5 right-0.5 z-10 w-5 h-5 rounded-full bg-slate-900/80 text-white flex items-center justify-center hover:bg-rose-600 active:scale-95 transition-all cursor-pointer disabled:opacity-50 shadow-md"
                                               title="Xóa để thay file khác"
                                             >
-                                              {isRemoving ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <X className="w-2.5 h-2.5" />}
+                                              {isRemoving ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
                                             </button>
                                           </div>
                                         );

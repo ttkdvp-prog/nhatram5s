@@ -282,15 +282,17 @@ export const saveBtsInspectionPhotos = async (params: SaveBtsInspectionParams): 
 };
 
 /**
- * Xóa 1 ảnh/file niêm yết cụ thể khỏi 1 trạm (dùng khi muốn thay ảnh khác)
+ * Xóa 1 ảnh/file niêm yết cụ thể khỏi 1 trạm (dùng khi muốn thay ảnh khác).
+ * Nhận thẳng bản ghi hiện tại (currentInspection) từ nơi gọi thay vì đọc lại cache localStorage,
+ * để tránh lệch dữ liệu nếu cache chưa kịp đồng bộ.
  */
-export const removeBtsInspectionPhoto = async (idNhaTram: string, photoUrl: string): Promise<BtsInspection | null> => {
+export const removeBtsInspectionPhoto = async (
+  currentInspection: BtsInspection,
+  photoUrl: string
+): Promise<BtsInspection> => {
   const url = getAppScriptUrl();
-  const currentList = getLocalBtsInspections();
-  const existing = currentList.find(b => b.id_nha_tram === idNhaTram);
-  if (!existing) return null;
-
-  let remainingPhotos = (existing.anh_niem_yet_list || []).filter(p => p !== photoUrl);
+  const idNhaTram = currentInspection.id_nha_tram;
+  let remainingPhotos = (currentInspection.anh_niem_yet_list || []).filter(p => p !== photoUrl);
 
   if (url) {
     try {
@@ -303,20 +305,25 @@ export const removeBtsInspectionPhoto = async (idNhaTram: string, photoUrl: stri
       const json = await response.json();
       if (json.status === 'success' && json.data?.anh_niem_yet_list) {
         remainingPhotos = json.data.anh_niem_yet_list;
+      } else if (json.status !== 'success') {
+        console.warn('removeBtsInspectionPhoto backend error:', json.message);
       }
     } catch (err) {
-      console.warn('removeBtsInspectionPhoto error:', err);
+      console.warn('removeBtsInspectionPhoto network error:', err);
     }
   }
 
   const updated: BtsInspection = {
-    ...existing,
+    ...currentInspection,
     anh_niem_yet_list: remainingPhotos,
     trang_thai: remainingPhotos.length > 0 ? 'Đã dán' : 'Chưa dán',
     thoi_diem_cap_nhat: new Date().toLocaleString('vi-VN')
   };
 
-  const updatedList = currentList.map(b => (b.id_nha_tram === idNhaTram ? updated : b));
+  const currentList = getLocalBtsInspections();
+  const updatedList = currentList.some(b => b.id_nha_tram === idNhaTram)
+    ? currentList.map(b => (b.id_nha_tram === idNhaTram ? updated : b))
+    : [...currentList, updated];
   safeLocalStorageSet(LOCAL_STORAGE_KEY_BTS, JSON.stringify(updatedList));
 
   return updated;
