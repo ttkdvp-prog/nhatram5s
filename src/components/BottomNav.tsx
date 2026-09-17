@@ -8,10 +8,10 @@ interface BottomNavProps {
 }
 
 const navItems = [
+  { id: 'btsInspection' as ActiveTab, label: 'KĐ BTS', icon: ShieldCheck },
   { id: 'survey' as ActiveTab, label: 'Triển khai', icon: ClipboardCheck },
   { id: 'records' as ActiveTab, label: 'Hồ sơ', icon: FolderKanban },
   { id: 'photos' as ActiveTab, label: 'Ảnh 5S', icon: Camera },
-  { id: 'btsInspection' as ActiveTab, label: 'KĐ BTS', icon: ShieldCheck },
   { id: 'reports' as ActiveTab, label: 'Báo cáo', icon: BarChart3 },
   { id: 'overview' as ActiveTab, label: 'Tổng quan', icon: LayoutDashboard },
 ];
