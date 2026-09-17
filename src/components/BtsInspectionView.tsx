@@ -36,7 +36,6 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null);
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
   const [uploadingStationId, setUploadingStationId] = useState<string | null>(null);
-  const [updatingExpiryId, setUpdatingExpiryId] = useState<string | null>(null);
   const [removingPhotoKey, setRemovingPhotoKey] = useState<string | null>(null);
   const [lightboxPhotos, setLightboxPhotos] = useState<LightboxPhoto[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -127,27 +126,40 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
     }
   };
 
-  const handleToggleExpiry = async (station: Station, current?: string) => {
+  const handleToggleExpiry = (station: Station, current?: string) => {
     const next: 'Còn hạn' | 'Hết hạn' | '' =
       current === 'Còn hạn' ? 'Hết hạn' : current === 'Hết hạn' ? '' : 'Còn hạn';
 
-    setUpdatingExpiryId(station.id_nha_tram);
-    try {
-      const updated = await updateBtsExpiryStatus({
-        id_nha_tram: station.id_nha_tram,
-        ma_nha_tram: station.ma_nha_tram,
-        ten_nha_tram: station.ten_nha_tram,
-        to_ha_tang: station.to_ha_tang,
-        nguoi_phu_trach: station.nguoi_phu_trach,
-        ma_nv: station.ma_nv,
-        han_kiem_dinh: next
-      });
-      onUpdated(updated);
-    } catch (err) {
-      console.error('Lỗi cập nhật hạn kiểm định:', err);
-    } finally {
-      setUpdatingExpiryId(null);
-    }
+    const existing = getInspection(station.id_nha_tram);
+
+    // Cập nhật giao diện ngay lập tức (optimistic) thay vì chờ round-trip mạng
+    // rồi mới đổi màu nút - request thật gửi ngầm phía sau, không chặn thao tác tiếp theo.
+    const optimistic: BtsInspection = {
+      id_kiem_dinh: existing?.id_kiem_dinh || 'BTS' + station.id_nha_tram,
+      id_nha_tram: station.id_nha_tram,
+      ma_nha_tram: station.ma_nha_tram,
+      ten_nha_tram: station.ten_nha_tram,
+      to_ha_tang: station.to_ha_tang,
+      nguoi_phu_trach: station.nguoi_phu_trach,
+      ma_nv: station.ma_nv,
+      trang_thai: existing?.trang_thai || 'Chưa dán',
+      anh_niem_yet_list: existing?.anh_niem_yet_list || [],
+      ngay_dan: existing?.ngay_dan,
+      nguoi_tai: existing?.nguoi_tai,
+      thoi_diem_cap_nhat: new Date().toLocaleString('vi-VN'),
+      han_kiem_dinh: next
+    };
+    onUpdated(optimistic);
+
+    updateBtsExpiryStatus({
+      id_nha_tram: station.id_nha_tram,
+      ma_nha_tram: station.ma_nha_tram,
+      ten_nha_tram: station.ten_nha_tram,
+      to_ha_tang: station.to_ha_tang,
+      nguoi_phu_trach: station.nguoi_phu_trach,
+      ma_nv: station.ma_nv,
+      han_kiem_dinh: next
+    }).catch(err => console.error('Lỗi cập nhật hạn kiểm định:', err));
   };
 
   const handleRemovePhoto = async (station: Station, inspection: BtsInspection, photoUrl: string) => {
@@ -259,7 +271,6 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                               const photos = inspection?.anh_niem_yet_list || [];
                               const isUploading = uploadingStationId === station.id_nha_tram;
                               const hanKiemDinh = inspection?.han_kiem_dinh || '';
-                              const isUpdatingExpiry = updatingExpiryId === station.id_nha_tram;
 
                               return (
                                 <div
@@ -290,9 +301,8 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
 
                                       <button
                                         type="button"
-                                        disabled={isUpdatingExpiry}
                                         onClick={() => handleToggleExpiry(station, hanKiemDinh)}
-                                        className={`flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full border transition-all cursor-pointer disabled:opacity-50 ${
+                                        className={`flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full border transition-all cursor-pointer active:scale-95 ${
                                           hanKiemDinh === 'Còn hạn'
                                             ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
                                             : hanKiemDinh === 'Hết hạn'
@@ -301,9 +311,7 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                                         }`}
                                         title="Bấm để chuyển trạng thái: Còn hạn / Hết hạn / Chưa xác định"
                                       >
-                                        {isUpdatingExpiry ? (
-                                          <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : hanKiemDinh === 'Còn hạn' ? (
+                                        {hanKiemDinh === 'Còn hạn' ? (
                                           <CheckCircle2 className="w-3 h-3" />
                                         ) : hanKiemDinh === 'Hết hạn' ? (
                                           <Circle className="w-3 h-3" />
