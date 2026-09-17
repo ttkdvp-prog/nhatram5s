@@ -18,7 +18,7 @@ import { compressImageFile, readFileAsDataUrl } from '../utils/imageHelper';
 import { saveBtsInspectionPhotos, removeBtsInspectionPhoto, updateBtsExpiryStatus, BtsUploadFile } from '../services/api';
 import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
 
-const isPdfUrl = (url: string) => /\.pdf(\?|$)/i.test(url) || url.includes('drive.google.com/file');
+const isPdfUrl = (url: string) => /\.pdf(\?|$)/i.test(url) || url.includes('drive.google.com/file') || url.startsWith('data:application/pdf');
 
 interface BtsInspectionViewProps {
   stations: Station[];
@@ -82,6 +82,8 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
     const station = pendingStationRef.current;
     const files = e.target.files;
     if (!station || !files || files.length === 0) return;
+    pendingStationRef.current = null;
+    const inputEl = e.target;
 
     setUploadingStationId(station.id_nha_tram);
     try {
@@ -104,6 +106,28 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
           };
         })
       );
+      inputEl.value = '';
+
+      // Hiển thị ảnh ngay lập tức (dùng luôn dữ liệu vừa nén ở máy) thay vì đợi tải lên
+      // Google Drive xong mới hiện - phần tải lên chạy ngầm phía sau và tự thay bằng link thật.
+      const existing = getInspection(station.id_nha_tram);
+      const optimisticPhotos = [...(existing?.anh_niem_yet_list || []), ...uploadFiles.map(f => f.dataUrl)];
+      onUpdated({
+        id_kiem_dinh: existing?.id_kiem_dinh || 'BTS' + station.id_nha_tram,
+        id_nha_tram: station.id_nha_tram,
+        ma_nha_tram: station.ma_nha_tram,
+        ten_nha_tram: station.ten_nha_tram,
+        to_ha_tang: station.to_ha_tang,
+        nguoi_phu_trach: station.nguoi_phu_trach,
+        ma_nv: station.ma_nv,
+        trang_thai: 'Đã dán',
+        anh_niem_yet_list: optimisticPhotos,
+        ngay_dan: existing?.ngay_dan || new Date().toLocaleDateString('vi-VN'),
+        nguoi_tai: existing?.nguoi_tai || station.nguoi_phu_trach || 'Không xác định',
+        thoi_diem_cap_nhat: new Date().toLocaleString('vi-VN'),
+        han_kiem_dinh: existing?.han_kiem_dinh
+      });
+      setUploadingStationId(null);
 
       const updated = await saveBtsInspectionPhotos({
         id_nha_tram: station.id_nha_tram,
@@ -116,13 +140,11 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
         photoFiles: uploadFiles
       });
 
+      // Thay ảnh tạm (base64) bằng link Drive thật sau khi tải lên xong
       onUpdated(updated);
     } catch (err) {
       console.error('Lỗi tải ảnh niêm yết BTS:', err);
-    } finally {
       setUploadingStationId(null);
-      pendingStationRef.current = null;
-      e.target.value = '';
     }
   };
 
