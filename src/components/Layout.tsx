@@ -7,6 +7,7 @@ import { StationRecordsView } from './StationRecordsView';
 import { PhotoProgressView } from './PhotoProgressView';
 import { ReportsView } from './ReportsView';
 import { BtsInspectionView } from './BtsInspectionView';
+import { BtsReportView } from './BtsReportView';
 import { fetchDashboardData, saveSurveyForm } from '../services/api';
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary, BtsInspection } from '../types';
 import { Menu } from 'lucide-react';
@@ -185,6 +186,10 @@ export const Layout: React.FC = () => {
               btsInspections={btsInspections}
               onUpdated={handleBtsInspectionUpdated}
             />
+          )}
+
+          {activeTab === 'btsReport' && (
+            <BtsReportView stations={stations} btsInspections={btsInspections} />
           )}
 
           {activeTab === 'reports' && (
