@@ -147,6 +147,18 @@ export const compressImageFile = async (
 };
 
 /**
+ * Đọc file bất kỳ (VD: PDF) thành chuỗi base64 Data URL, không nén/chuyển đổi
+ */
+export const readFileAsDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+/**
  * Lưu trữ an toàn vào LocalStorage, chống lỗi DOMException: QuotaExceededError
  */
 export const safeLocalStorageSet = (key: string, value: string): void => {

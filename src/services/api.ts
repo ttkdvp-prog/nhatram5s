@@ -190,6 +190,13 @@ export const getLocalBtsInspections = (): BtsInspection[] => {
  * Tải ảnh niêm yết kiểm định BTS lên thư mục Google Drive riêng (anhkiemdinhBTS)
  * và ghi nhận trạng thái "Đã dán" cho trạm tương ứng, đồng bộ cho mọi người xem.
  */
+export interface BtsUploadFile {
+  dataUrl: string; // base64 data URL
+  mimeType: string;
+  fileName: string;
+  isPdf: boolean;
+}
+
 export interface SaveBtsInspectionParams {
   id_nha_tram: string;
   ma_nha_tram: string;
@@ -198,7 +205,7 @@ export interface SaveBtsInspectionParams {
   nguoi_phu_trach: string;
   ma_nv?: string;
   nguoi_tai: string;
-  photoFiles: string[]; // base64 data URLs
+  photoFiles: BtsUploadFile[];
 }
 
 export const saveBtsInspectionPhotos = async (params: SaveBtsInspectionParams): Promise<BtsInspection> => {
@@ -206,7 +213,7 @@ export const saveBtsInspectionPhotos = async (params: SaveBtsInspectionParams): 
   const uploadedUrls: string[] = [];
 
   for (let i = 0; i < params.photoFiles.length; i++) {
-    const base64Data = params.photoFiles[i];
+    const file = params.photoFiles[i];
     if (url) {
       try {
         const response = await fetch(url, {
@@ -215,23 +222,26 @@ export const saveBtsInspectionPhotos = async (params: SaveBtsInspectionParams): 
           body: JSON.stringify({
             action: 'uploadBtsImage',
             data: {
-              base64Data,
-              fileName: `BTS_NiemYet_${params.ma_nha_tram}_${Date.now()}_${i + 1}.jpg`,
+              base64Data: file.dataUrl,
+              mimeType: file.mimeType,
+              fileName: file.fileName || `BTS_NiemYet_${params.ma_nha_tram}_${Date.now()}_${i + 1}`,
               stationCode: params.ma_nha_tram
             }
           }),
           redirect: 'follow'
         });
         const json = await response.json();
-        if (json.status === 'success' && json.data?.lh3Url) {
-          uploadedUrls.push(toLh3Url(json.data.lh3Url));
+        if (json.status === 'success' && json.data) {
+          // PDF không hiển thị được qua CDN ảnh lh3 -> dùng link xem trực tiếp trên Drive
+          const finalUrl = file.isPdf && json.data.driveViewLink ? json.data.driveViewLink : toLh3Url(json.data.lh3Url);
+          uploadedUrls.push(finalUrl);
           continue;
         }
       } catch (err) {
         console.warn('BTS photo upload failed:', err);
       }
     }
-    uploadedUrls.push(base64Data);
+    uploadedUrls.push(file.dataUrl);
   }
 
   const currentList = getLocalBtsInspections();

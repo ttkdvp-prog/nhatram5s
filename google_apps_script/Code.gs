@@ -213,7 +213,7 @@ function handleUploadImageToDrive(data) {
       return { status: 'error', message: 'Không có dữ liệu ảnh (base64Data)' };
     }
 
-    var cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, '');
+    var cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
     var decoded = Utilities.base64Decode(cleanBase64);
     var blob = Utilities.newBlob(decoded, mimeType, fileName);
 
@@ -504,7 +504,9 @@ function handleAddStation(data) {
 function getBtsInspectionsData() {
   var rows = getSheetData(SHEET_NAMES.BTS_INSPECTIONS);
   return rows.map(function(row) {
-    var list = row.anh_niem_yet_list ? String(row.anh_niem_yet_list).split(/[\n,;]+/).map(function(s) { return toLh3Url(s.trim()); }).filter(Boolean) : [];
+    // Không ép qua toLh3Url ở đây vì danh sách có thể lẫn link Google Drive xem trực tiếp (PDF)
+    // và link CDN ảnh lh3 (ảnh) - mỗi loại đã được chuẩn hóa đúng định dạng từ lúc lưu.
+    var list = row.anh_niem_yet_list ? String(row.anh_niem_yet_list).split(/[\n,;]+/).map(function(s) { return s.trim(); }).filter(Boolean) : [];
     row.anh_niem_yet_list = list;
     return row;
   });
@@ -522,7 +524,8 @@ function handleSaveBtsInspection(data) {
     var idNhaTram = data.id_nha_tram || '';
     if (!idNhaTram) return { status: 'error', message: 'Thiếu id_nha_tram' };
 
-    var newUrls = Array.isArray(data.anh_niem_yet_list) ? data.anh_niem_yet_list.map(toLh3Url).filter(Boolean) : [];
+    // Giữ nguyên URL do frontend gửi lên (đã chuẩn hóa đúng loại: lh3 cho ảnh, Drive view link cho PDF)
+    var newUrls = Array.isArray(data.anh_niem_yet_list) ? data.anh_niem_yet_list.map(function(s) { return String(s).trim(); }).filter(Boolean) : [];
     var currentDateStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy');
     var currentTimestampStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy HH:mm:ss');
 

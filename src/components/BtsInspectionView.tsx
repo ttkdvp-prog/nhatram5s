@@ -9,13 +9,15 @@ import {
   CheckCircle2,
   Circle,
   Loader2,
-  Eye,
-  Building2
+  Building2,
+  FileText
 } from 'lucide-react';
 import { Station, BtsInspection } from '../types';
-import { compressImageFile } from '../utils/imageHelper';
-import { saveBtsInspectionPhotos } from '../services/api';
+import { compressImageFile, readFileAsDataUrl } from '../utils/imageHelper';
+import { saveBtsInspectionPhotos, BtsUploadFile } from '../services/api';
 import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
+
+const isPdfUrl = (url: string) => /\.pdf(\?|$)/i.test(url) || url.includes('drive.google.com/file');
 
 interface BtsInspectionViewProps {
   stations: Station[];
@@ -34,6 +36,7 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
   const [uploadingStationId, setUploadingStationId] = useState<string | null>(null);
   const [lightboxPhotos, setLightboxPhotos] = useState<LightboxPhoto[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -80,10 +83,19 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
 
     setUploadingStationId(station.id_nha_tram);
     try {
-      const base64List: string[] = [];
+      const uploadFiles: BtsUploadFile[] = [];
       for (let i = 0; i < files.length; i++) {
-        const compressed = await compressImageFile(files[i]);
-        base64List.push(compressed);
+        const file = files[i];
+        const isPdf = file.type === 'application/pdf';
+        const dataUrl = isPdf ? await readFileAsDataUrl(file) : await compressImageFile(file);
+        uploadFiles.push({
+          dataUrl,
+          mimeType: isPdf ? 'application/pdf' : 'image/jpeg',
+          fileName: isPdf
+            ? (file.name || `BTS_NiemYet_${station.ma_nha_tram}_${Date.now()}_${i + 1}.pdf`)
+            : `BTS_NiemYet_${station.ma_nha_tram}_${Date.now()}_${i + 1}.jpg`,
+          isPdf
+        });
       }
 
       const updated = await saveBtsInspectionPhotos({
@@ -94,7 +106,7 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
         nguoi_phu_trach: station.nguoi_phu_trach,
         ma_nv: station.ma_nv,
         nguoi_tai: station.nguoi_phu_trach || 'Không xác định',
-        photoFiles: base64List
+        photoFiles: uploadFiles
       });
 
       onUpdated(updated);
@@ -107,22 +119,24 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
     }
   };
 
-  const openLightbox = (station: Station, photos: string[]) => {
+  const openLightbox = (station: Station, photos: string[], startIndex: number) => {
+    const imageOnly = photos.filter(url => !isPdfUrl(url));
     setLightboxPhotos(
-      photos.map((url, idx) => ({
+      imageOnly.map((url, idx) => ({
         url,
         title: `Niêm yết kiểm định #${idx + 1}`,
         stationCode: station.ma_nha_tram,
         type: 'Minh chứng' as const
       }))
     );
+    setLightboxIndex(Math.max(0, imageOnly.indexOf(photos[startIndex])));
     setIsLightboxOpen(true);
   };
 
   return (
     <div className="space-y-6">
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleFilesSelected} />
-      <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFilesSelected} />
+      <input ref={fileInputRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleFilesSelected} />
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
         <h2 className="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
@@ -130,8 +144,8 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
           <span>Công bố kiểm định BTS</span>
         </h2>
         <p className="text-sm text-slate-500 mt-1">
-          Chọn Tổ Hạ tầng → nhân viên quản lý → chụp hoặc tải ảnh giấy niêm yết kiểm định đã dán tại từng trạm BTS.
-          Ảnh được lưu trên Google Drive và hiển thị công khai cho mọi người xem.
+          Chọn Tổ Hạ tầng → nhân viên quản lý → chụp hoặc tải ảnh/file PDF giấy niêm yết kiểm định đã dán tại từng trạm BTS.
+          File được lưu trên Google Drive và hiển thị công khai cho mọi người xem.
         </p>
       </div>
 
@@ -204,68 +218,88 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                               return (
                                 <div
                                   key={station.id_nha_tram}
-                                  className="bg-white rounded-xl border border-slate-200 p-3.5 flex flex-col sm:flex-row sm:items-center gap-3"
+                                  className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-3"
                                 >
-                                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                                    <Radio className="w-4 h-4 text-vnpt-500 mt-0.5 shrink-0" />
-                                    <div className="min-w-0">
-                                      <div className="font-bold text-slate-800 text-sm truncate">{station.ten_nha_tram}</div>
-                                      <div className="text-xs text-slate-500 font-medium">{station.ma_nha_tram} • {station.dia_ban}</div>
+                                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                    <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                                      <Radio className="w-4 h-4 text-vnpt-500 mt-0.5 shrink-0" />
+                                      <div className="min-w-0">
+                                        <div className="font-bold text-slate-800 text-sm truncate">{station.ten_nha_tram}</div>
+                                        <div className="text-xs text-slate-500 font-medium">{station.ma_nha_tram} • {station.dia_ban}</div>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      {isPosted ? (
+                                        <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">
+                                          <CheckCircle2 className="w-3.5 h-3.5" />
+                                          Đã dán niêm yết
+                                        </span>
+                                      ) : (
+                                        <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-1 rounded-full">
+                                          <Circle className="w-3.5 h-3.5" />
+                                          Chưa dán
+                                        </span>
+                                      )}
+
+                                      {isUploading ? (
+                                        <span className="flex items-center gap-1.5 text-[11px] font-bold text-vnpt-600 px-2.5 py-1.5">
+                                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                          Đang tải...
+                                        </span>
+                                      ) : (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenPicker(station, true)}
+                                            className="flex items-center gap-1.5 text-[11px] font-bold text-white bg-vnpt-500 hover:bg-vnpt-600 active:scale-95 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                                            title="Chụp ảnh từ điện thoại"
+                                          >
+                                            <Camera className="w-3.5 h-3.5" />
+                                            Chụp ảnh
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenPicker(station, false)}
+                                            className="text-[11px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 active:scale-95 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                                            title="Chọn ảnh hoặc file PDF từ máy tính"
+                                          >
+                                            Chọn file
+                                          </button>
+                                        </>
+                                      )}
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    {isPosted ? (
-                                      <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                        Đã dán niêm yết
-                                      </span>
-                                    ) : (
-                                      <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-1 rounded-full">
-                                        <Circle className="w-3.5 h-3.5" />
-                                        Chưa dán
-                                      </span>
-                                    )}
-
-                                    {photos.length > 0 && (
-                                      <button
-                                        type="button"
-                                        onClick={() => openLightbox(station, photos)}
-                                        className="flex items-center gap-1 text-[11px] font-bold text-vnpt-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-1 rounded-full transition-colors cursor-pointer"
-                                        title="Xem ảnh niêm yết đã tải"
-                                      >
-                                        <Eye className="w-3.5 h-3.5" />
-                                        {photos.length} ảnh
-                                      </button>
-                                    )}
-
-                                    {isUploading ? (
-                                      <span className="flex items-center gap-1.5 text-[11px] font-bold text-vnpt-600 px-2.5 py-1.5">
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                        Đang tải...
-                                      </span>
-                                    ) : (
-                                      <>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleOpenPicker(station, true)}
-                                          className="flex items-center gap-1.5 text-[11px] font-bold text-white bg-vnpt-500 hover:bg-vnpt-600 active:scale-95 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
-                                          title="Chụp ảnh từ điện thoại"
-                                        >
-                                          <Camera className="w-3.5 h-3.5" />
-                                          Chụp ảnh
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleOpenPicker(station, false)}
-                                          className="text-[11px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 active:scale-95 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
-                                          title="Chọn ảnh từ máy tính"
-                                        >
-                                          Chọn file
-                                        </button>
-                                      </>
-                                    )}
-                                  </div>
+                                  {photos.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 pl-6.5">
+                                      {photos.map((url, idx) =>
+                                        isPdfUrl(url) ? (
+                                          <a
+                                            key={idx}
+                                            href={url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w-14 h-14 rounded-lg border border-rose-200 bg-rose-50 flex flex-col items-center justify-center gap-0.5 hover:bg-rose-100 transition-colors shrink-0"
+                                            title="Mở file PDF niêm yết"
+                                          >
+                                            <FileText className="w-5 h-5 text-rose-500" />
+                                            <span className="text-[9px] font-bold text-rose-600">PDF</span>
+                                          </a>
+                                        ) : (
+                                          <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => openLightbox(station, photos, idx)}
+                                            className="w-14 h-14 rounded-lg border border-slate-200 overflow-hidden shrink-0 hover:ring-2 hover:ring-vnpt-400 transition-all cursor-pointer"
+                                            title="Xem ảnh niêm yết"
+                                          >
+                                            <img src={url} alt="Ảnh niêm yết kiểm định" className="w-full h-full object-cover" />
+                                          </button>
+                                        )
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -291,6 +325,7 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
         isOpen={isLightboxOpen}
         onClose={() => setIsLightboxOpen(false)}
         photos={lightboxPhotos}
+        initialIndex={lightboxIndex}
       />
     </div>
   );
