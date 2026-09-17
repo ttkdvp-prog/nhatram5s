@@ -13,6 +13,16 @@ export interface Station {
   he_so_quy_doi?: number;
   trang_thai: string;
   ghi_chu?: string;
+  // Thông tin chứng nhận kiểm định / công bố hợp quy trạm BTS (bổ sung trong DM_NHA_TRAM)
+  GCN_kiem_dinh?: string;
+  nam_cap_kiem_dinh?: string | number;
+  ngay_cap_kiem_dinh?: string;
+  ngay_het_han_kiem_dinh?: string;
+  GCN_cong_bo?: string;
+  nam_cap_cong_bo?: string | number;
+  ngay_cap_cong_bo?: string;
+  ngay_het_han_cong_bo?: string;
+  dien_giai?: string;
 }
 
 export interface SurveyRecord {

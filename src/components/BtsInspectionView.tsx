@@ -323,6 +323,12 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                                       <div className="min-w-0">
                                         <div className="font-bold text-slate-800 text-sm truncate">{station.ten_nha_tram}</div>
                                         <div className="text-xs text-slate-500 font-medium">{station.ma_nha_tram} • {station.dia_ban}</div>
+                                        {(station.GCN_kiem_dinh || station.GCN_cong_bo) && (
+                                          <div className="text-[11px] text-vnpt-700 font-semibold mt-0.5 space-x-3">
+                                            {station.GCN_kiem_dinh && <span>Số GCN kiểm định: {station.GCN_kiem_dinh}</span>}
+                                            {station.GCN_cong_bo && <span>Số GCN công bố: {station.GCN_cong_bo}</span>}
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
 
