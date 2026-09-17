@@ -82,7 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Bottom User Profile Card matching Image 1 */}
         <div className="p-4 border-t border-white/10">
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/15">
-            <h4 className="font-bold text-sm text-white">Tổ Hạ tầng Việt Trì</h4>
+            <h4 className="font-bold text-sm text-white">Tổ Hạ tầng</h4>
             <p className="text-xs text-sky-200 mt-0.5">Người cập nhật: <span className="font-semibold text-white">Nguyễn Văn A</span></p>
           </div>
         </div>
