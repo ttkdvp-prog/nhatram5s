@@ -208,47 +208,54 @@ export interface SaveBtsInspectionParams {
   photoFiles: BtsUploadFile[];
 }
 
+/**
+ * Tải toàn bộ file (nhiều ảnh/PDF) + ghi nhận công bố kiểm định BTS chỉ trong 1 lần gọi Apps Script
+ * (thay vì gọi riêng từng ảnh) để giảm số round-trip mạng, tăng tốc đáng kể khi có nhiều file.
+ */
 export const saveBtsInspectionPhotos = async (params: SaveBtsInspectionParams): Promise<BtsInspection> => {
   const url = getAppScriptUrl();
-  const uploadedUrls: string[] = [];
-
-  for (let i = 0; i < params.photoFiles.length; i++) {
-    const file = params.photoFiles[i];
-    if (url) {
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'uploadBtsImage',
-            data: {
-              base64Data: file.dataUrl,
-              mimeType: file.mimeType,
-              fileName: file.fileName || `BTS_NiemYet_${params.ma_nha_tram}_${Date.now()}_${i + 1}`,
-              stationCode: params.ma_nha_tram,
-              to_ha_tang: params.to_ha_tang,
-              nguoi_phu_trach: params.nguoi_phu_trach
-            }
-          }),
-          redirect: 'follow'
-        });
-        const json = await response.json();
-        if (json.status === 'success' && json.data) {
-          // PDF không hiển thị được qua CDN ảnh lh3 -> dùng link xem trực tiếp trên Drive
-          const finalUrl = file.isPdf && json.data.driveViewLink ? json.data.driveViewLink : toLh3Url(json.data.lh3Url);
-          uploadedUrls.push(finalUrl);
-          continue;
-        }
-      } catch (err) {
-        console.warn('BTS photo upload failed:', err);
-      }
-    }
-    uploadedUrls.push(file.dataUrl);
-  }
-
   const currentList = getLocalBtsInspections();
   const existing = currentList.find(b => b.id_nha_tram === params.id_nha_tram);
-  const mergedPhotos = [...(existing?.anh_niem_yet_list || []), ...uploadedUrls];
+
+  let mergedPhotos: string[] = existing?.anh_niem_yet_list || [];
+
+  if (url) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'saveBtsInspectionBatch',
+          data: {
+            id_nha_tram: params.id_nha_tram,
+            ma_nha_tram: params.ma_nha_tram,
+            ten_nha_tram: params.ten_nha_tram,
+            to_ha_tang: params.to_ha_tang,
+            nguoi_phu_trach: params.nguoi_phu_trach,
+            ma_nv: params.ma_nv,
+            nguoi_tai: params.nguoi_tai,
+            files: params.photoFiles.map(f => ({
+              base64Data: f.dataUrl,
+              mimeType: f.mimeType,
+              fileName: f.fileName
+            }))
+          }
+        }),
+        redirect: 'follow'
+      });
+      const json = await response.json();
+      if (json.status === 'success' && json.data?.anh_niem_yet_list) {
+        mergedPhotos = json.data.anh_niem_yet_list;
+      } else {
+        mergedPhotos = [...mergedPhotos, ...params.photoFiles.map(f => f.dataUrl)];
+      }
+    } catch (err) {
+      console.warn('saveBtsInspectionBatch error:', err);
+      mergedPhotos = [...mergedPhotos, ...params.photoFiles.map(f => f.dataUrl)];
+    }
+  } else {
+    mergedPhotos = [...mergedPhotos, ...params.photoFiles.map(f => f.dataUrl)];
+  }
 
   const updated: BtsInspection = {
     id_kiem_dinh: existing?.id_kiem_dinh || 'BTS' + String(currentList.length + 1).padStart(4, '0'),
@@ -258,41 +265,58 @@ export const saveBtsInspectionPhotos = async (params: SaveBtsInspectionParams): 
     to_ha_tang: params.to_ha_tang,
     nguoi_phu_trach: params.nguoi_phu_trach,
     ma_nv: params.ma_nv,
-    trang_thai: 'Đã dán',
+    trang_thai: mergedPhotos.length > 0 ? 'Đã dán' : 'Chưa dán',
     anh_niem_yet_list: mergedPhotos,
     ngay_dan: new Date().toLocaleDateString('vi-VN'),
     nguoi_tai: params.nguoi_tai,
-    thoi_diem_cap_nhat: new Date().toLocaleString('vi-VN')
+    thoi_diem_cap_nhat: new Date().toLocaleString('vi-VN'),
+    han_kiem_dinh: existing?.han_kiem_dinh
   };
-
-  if (url) {
-    try {
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'saveBtsInspection',
-          data: {
-            id_nha_tram: params.id_nha_tram,
-            ma_nha_tram: params.ma_nha_tram,
-            ten_nha_tram: params.ten_nha_tram,
-            to_ha_tang: params.to_ha_tang,
-            nguoi_phu_trach: params.nguoi_phu_trach,
-            ma_nv: params.ma_nv,
-            nguoi_tai: params.nguoi_tai,
-            anh_niem_yet_list: uploadedUrls
-          }
-        }),
-        redirect: 'follow'
-      });
-    } catch (err) {
-      console.warn('saveBtsInspection error:', err);
-    }
-  }
 
   const updatedList = existing
     ? currentList.map(b => (b.id_nha_tram === params.id_nha_tram ? updated : b))
     : [...currentList, updated];
+  safeLocalStorageSet(LOCAL_STORAGE_KEY_BTS, JSON.stringify(updatedList));
+
+  return updated;
+};
+
+/**
+ * Xóa 1 ảnh/file niêm yết cụ thể khỏi 1 trạm (dùng khi muốn thay ảnh khác)
+ */
+export const removeBtsInspectionPhoto = async (idNhaTram: string, photoUrl: string): Promise<BtsInspection | null> => {
+  const url = getAppScriptUrl();
+  const currentList = getLocalBtsInspections();
+  const existing = currentList.find(b => b.id_nha_tram === idNhaTram);
+  if (!existing) return null;
+
+  let remainingPhotos = (existing.anh_niem_yet_list || []).filter(p => p !== photoUrl);
+
+  if (url) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'removeBtsInspectionPhoto', data: { id_nha_tram: idNhaTram, url: photoUrl } }),
+        redirect: 'follow'
+      });
+      const json = await response.json();
+      if (json.status === 'success' && json.data?.anh_niem_yet_list) {
+        remainingPhotos = json.data.anh_niem_yet_list;
+      }
+    } catch (err) {
+      console.warn('removeBtsInspectionPhoto error:', err);
+    }
+  }
+
+  const updated: BtsInspection = {
+    ...existing,
+    anh_niem_yet_list: remainingPhotos,
+    trang_thai: remainingPhotos.length > 0 ? 'Đã dán' : 'Chưa dán',
+    thoi_diem_cap_nhat: new Date().toLocaleString('vi-VN')
+  };
+
+  const updatedList = currentList.map(b => (b.id_nha_tram === idNhaTram ? updated : b));
   safeLocalStorageSet(LOCAL_STORAGE_KEY_BTS, JSON.stringify(updatedList));
 
   return updated;

@@ -118,6 +118,10 @@ function doPost(e) {
       }));
     } else if (action === 'saveBtsInspection') {
       response = handleSaveBtsInspection(postData.data);
+    } else if (action === 'saveBtsInspectionBatch') {
+      response = handleSaveBtsInspectionBatch(postData.data);
+    } else if (action === 'removeBtsInspectionPhoto') {
+      response = handleRemoveBtsInspectionPhoto(postData.data);
     } else if (action === 'updateBtsExpiryStatus') {
       response = handleUpdateBtsExpiryStatus(postData.data);
     } else if (action === 'updateRecommendationStatus') {
@@ -549,62 +553,155 @@ function getBtsInspectionsData() {
  */
 function handleSaveBtsInspection(data) {
   try {
+    var newUrls = Array.isArray(data.anh_niem_yet_list) ? data.anh_niem_yet_list.map(function(s) { return String(s).trim(); }).filter(Boolean) : [];
+    return upsertBtsInspectionRow(data, newUrls);
+  } catch (e) {
+    return { status: 'error', message: 'Lỗi ghi nhận kiểm định BTS: ' + e.toString() };
+  }
+}
+
+/**
+ * TẢI NHIỀU FILE + GHI NHẬN kiểm định BTS trong 1 lần gọi Apps Script duy nhất (tăng tốc đáng kể
+ * so với gọi tải từng ảnh một - vì mỗi lần gọi doPost tốn round-trip mạng riêng và phải dò lại
+ * cây thư mục Drive từ đầu). Thư mục lồng nhau chỉ được tạo/tìm MỘT LẦN rồi dùng chung cho cả lô ảnh.
+ */
+function handleSaveBtsInspectionBatch(data) {
+  try {
+    var files = Array.isArray(data.files) ? data.files : [];
+    if (files.length === 0) return { status: 'error', message: 'Không có file nào để tải lên' };
+
+    var folder = getOrCreateNestedFolder([BTS_DRIVE_FOLDER_NAME, data.to_ha_tang || 'Chưa phân tổ', data.nguoi_phu_trach || 'Chưa phân công']);
+    var newUrls = [];
+
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      var cleanBase64 = String(f.base64Data || '').replace(/^data:[^;]+;base64,/, '');
+      if (!cleanBase64) continue;
+      var mimeType = f.mimeType || 'image/jpeg';
+      var fileName = f.fileName || ('BTS_' + (data.ma_nha_tram || 'TRAM') + '_' + new Date().getTime() + '_' + (i + 1));
+      var decoded = Utilities.base64Decode(cleanBase64);
+      var blob = Utilities.newBlob(decoded, mimeType, fileName);
+      var file = folder.createFile(blob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      var fileId = file.getId();
+      var isPdf = mimeType === 'application/pdf';
+      newUrls.push(isPdf
+        ? ('https://drive.google.com/file/d/' + fileId + '/view?usp=sharing')
+        : ('https://lh3.googleusercontent.com/d/' + fileId));
+    }
+
+    return upsertBtsInspectionRow(data, newUrls);
+  } catch (e) {
+    return { status: 'error', message: 'Lỗi tải & ghi nhận kiểm định BTS: ' + e.toString() };
+  }
+}
+
+/**
+ * Hàm dùng chung: gộp URL ảnh mới vào dòng KIEM_DINH_BTS của 1 trạm (tạo dòng mới nếu chưa có)
+ */
+function upsertBtsInspectionRow(data, newUrls) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_NAMES.BTS_INSPECTIONS);
+  if (!sheet) return { status: 'error', message: 'Không tìm thấy sheet KIEM_DINH_BTS' };
+
+  var idNhaTram = data.id_nha_tram || '';
+  if (!idNhaTram) return { status: 'error', message: 'Thiếu id_nha_tram' };
+
+  var currentDateStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy');
+  var currentTimestampStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy HH:mm:ss');
+
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0];
+  var idCol = headers.indexOf('id_nha_tram');
+  var photosCol = headers.indexOf('anh_niem_yet_list');
+  var statusCol = headers.indexOf('trang_thai');
+  var dateCol = headers.indexOf('ngay_dan');
+  var uploaderCol = headers.indexOf('nguoi_tai');
+  var updatedAtCol = headers.indexOf('thoi_diem_cap_nhat');
+
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][idCol]) === String(idNhaTram)) {
+      var existingUrls = values[i][photosCol] ? String(values[i][photosCol]).split(/[\n,;]+/).map(function(s) { return s.trim(); }).filter(Boolean) : [];
+      var mergedUrls = existingUrls.concat(newUrls);
+      sheet.getRange(i + 1, photosCol + 1).setValue(mergedUrls.join(', '));
+      sheet.getRange(i + 1, statusCol + 1).setValue(mergedUrls.length > 0 ? 'Đã dán' : 'Chưa dán');
+      sheet.getRange(i + 1, dateCol + 1).setValue(currentDateStr);
+      sheet.getRange(i + 1, uploaderCol + 1).setValue(data.nguoi_tai || '');
+      sheet.getRange(i + 1, updatedAtCol + 1).setValue(currentTimestampStr);
+      SpreadsheetApp.flush();
+      return { status: 'success', message: 'Cập nhật công bố kiểm định BTS thành công!', data: { anh_niem_yet_list: mergedUrls } };
+    }
+  }
+
+  var newId = 'BTS' + String(sheet.getLastRow()).padStart(4, '0');
+  sheet.appendRow([
+    newId,
+    idNhaTram,
+    data.ma_nha_tram || '',
+    data.ten_nha_tram || '',
+    data.to_ha_tang || '',
+    data.nguoi_phu_trach || '',
+    data.ma_nv || '',
+    newUrls.length > 0 ? 'Đã dán' : 'Chưa dán',
+    newUrls.join(', '),
+    currentDateStr,
+    data.nguoi_tai || '',
+    currentTimestampStr
+  ]);
+
+  SpreadsheetApp.flush();
+  return { status: 'success', message: 'Ghi nhận công bố kiểm định BTS thành công!', id: newId, data: { anh_niem_yet_list: newUrls } };
+}
+
+/**
+ * Xóa 1 ảnh/file cụ thể khỏi danh sách niêm yết của 1 trạm (dùng khi cần sửa/thay ảnh khác)
+ */
+function handleRemoveBtsInspectionPhoto(data) {
+  try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName(SHEET_NAMES.BTS_INSPECTIONS);
     if (!sheet) return { status: 'error', message: 'Không tìm thấy sheet KIEM_DINH_BTS' };
 
     var idNhaTram = data.id_nha_tram || '';
-    if (!idNhaTram) return { status: 'error', message: 'Thiếu id_nha_tram' };
-
-    // Giữ nguyên URL do frontend gửi lên (đã chuẩn hóa đúng loại: lh3 cho ảnh, Drive view link cho PDF)
-    var newUrls = Array.isArray(data.anh_niem_yet_list) ? data.anh_niem_yet_list.map(function(s) { return String(s).trim(); }).filter(Boolean) : [];
-    var currentDateStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy');
-    var currentTimestampStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy HH:mm:ss');
+    var urlToRemove = String(data.url || '').trim();
+    if (!idNhaTram || !urlToRemove) return { status: 'error', message: 'Thiếu id_nha_tram hoặc url' };
 
     var values = sheet.getDataRange().getValues();
     var headers = values[0];
     var idCol = headers.indexOf('id_nha_tram');
     var photosCol = headers.indexOf('anh_niem_yet_list');
     var statusCol = headers.indexOf('trang_thai');
-    var dateCol = headers.indexOf('ngay_dan');
-    var uploaderCol = headers.indexOf('nguoi_tai');
     var updatedAtCol = headers.indexOf('thoi_diem_cap_nhat');
 
     for (var i = 1; i < values.length; i++) {
       if (String(values[i][idCol]) === String(idNhaTram)) {
         var existingUrls = values[i][photosCol] ? String(values[i][photosCol]).split(/[\n,;]+/).map(function(s) { return s.trim(); }).filter(Boolean) : [];
-        var mergedUrls = existingUrls.concat(newUrls);
-        sheet.getRange(i + 1, photosCol + 1).setValue(mergedUrls.join(', '));
-        sheet.getRange(i + 1, statusCol + 1).setValue('Đã dán');
-        sheet.getRange(i + 1, dateCol + 1).setValue(currentDateStr);
-        sheet.getRange(i + 1, uploaderCol + 1).setValue(data.nguoi_tai || '');
-        sheet.getRange(i + 1, updatedAtCol + 1).setValue(currentTimestampStr);
+        var remainingUrls = existingUrls.filter(function(u) { return u !== urlToRemove; });
+        sheet.getRange(i + 1, photosCol + 1).setValue(remainingUrls.join(', '));
+        sheet.getRange(i + 1, statusCol + 1).setValue(remainingUrls.length > 0 ? 'Đã dán' : 'Chưa dán');
+        sheet.getRange(i + 1, updatedAtCol + 1).setValue(Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy HH:mm:ss'));
         SpreadsheetApp.flush();
-        return { status: 'success', message: 'Cập nhật công bố kiểm định BTS thành công!' };
+
+        // Dọn luôn file trên Drive nếu trích được fileId từ URL
+        try {
+          var fileId = extractDriveFileIdFromUrl(urlToRemove);
+          if (fileId) DriveApp.getFileById(fileId).setTrashed(true);
+        } catch (eDel) {
+          Logger.log('Không thể xóa file Drive: ' + eDel);
+        }
+
+        return { status: 'success', message: 'Đã xóa ảnh/file niêm yết', data: { anh_niem_yet_list: remainingUrls } };
       }
     }
-
-    var newId = 'BTS' + String(sheet.getLastRow()).padStart(4, '0');
-    sheet.appendRow([
-      newId,
-      idNhaTram,
-      data.ma_nha_tram || '',
-      data.ten_nha_tram || '',
-      data.to_ha_tang || '',
-      data.nguoi_phu_trach || '',
-      data.ma_nv || '',
-      'Đã dán',
-      newUrls.join(', '),
-      currentDateStr,
-      data.nguoi_tai || '',
-      currentTimestampStr
-    ]);
-
-    SpreadsheetApp.flush();
-    return { status: 'success', message: 'Ghi nhận công bố kiểm định BTS thành công!', id: newId };
+    return { status: 'error', message: 'Không tìm thấy trạm' };
   } catch (e) {
-    return { status: 'error', message: 'Lỗi ghi nhận kiểm định BTS: ' + e.toString() };
+    return { status: 'error', message: 'Lỗi xóa ảnh niêm yết: ' + e.toString() };
   }
+}
+
+function extractDriveFileIdFromUrl(url) {
+  var m = url.match(/\/d\/([a-zA-Z0-9_-]{20,})/);
+  return m ? m[1] : null;
 }
 
 /**

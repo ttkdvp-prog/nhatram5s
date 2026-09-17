@@ -10,11 +10,12 @@ import {
   Circle,
   Loader2,
   Building2,
-  FileText
+  FileText,
+  X
 } from 'lucide-react';
 import { Station, BtsInspection } from '../types';
 import { compressImageFile, readFileAsDataUrl } from '../utils/imageHelper';
-import { saveBtsInspectionPhotos, updateBtsExpiryStatus, BtsUploadFile } from '../services/api';
+import { saveBtsInspectionPhotos, removeBtsInspectionPhoto, updateBtsExpiryStatus, BtsUploadFile } from '../services/api';
 import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
 
 const isPdfUrl = (url: string) => /\.pdf(\?|$)/i.test(url) || url.includes('drive.google.com/file');
@@ -36,6 +37,7 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
   const [uploadingStationId, setUploadingStationId] = useState<string | null>(null);
   const [updatingExpiryId, setUpdatingExpiryId] = useState<string | null>(null);
+  const [removingPhotoKey, setRemovingPhotoKey] = useState<string | null>(null);
   const [lightboxPhotos, setLightboxPhotos] = useState<LightboxPhoto[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -87,20 +89,22 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
       const sanitize = (s: string) => s.replace(/[\\/:*?"<>|]/g, '').trim();
       const namePrefix = `${sanitize(station.to_ha_tang || '')}_${sanitize(station.nguoi_phu_trach || '')}`.replace(/\s+/g, '');
 
-      const uploadFiles: BtsUploadFile[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const isPdf = file.type === 'application/pdf';
-        const dataUrl = isPdf ? await readFileAsDataUrl(file) : await compressImageFile(file);
-        uploadFiles.push({
-          dataUrl,
-          mimeType: isPdf ? 'application/pdf' : 'image/jpeg',
-          fileName: isPdf
-            ? `${namePrefix}_${sanitize(file.name || `${station.ma_nha_tram}_${Date.now()}_${i + 1}.pdf`)}`
-            : `${namePrefix}_${station.ma_nha_tram}_${Date.now()}_${i + 1}.jpg`,
-          isPdf
-        });
-      }
+      // Nén/đọc song song tất cả file cùng lúc thay vì tuần tự để rút ngắn thời gian chờ
+      const uploadFiles: BtsUploadFile[] = await Promise.all(
+        Array.from(files).map(async (file, i) => {
+          const isPdf = file.type === 'application/pdf';
+          // Ảnh niêm yết chỉ cần đủ rõ để đọc chữ -> nén nhỏ + nhanh hơn ảnh minh chứng 5S thông thường
+          const dataUrl = isPdf ? await readFileAsDataUrl(file) : await compressImageFile(file, 1280, 1280, 0.72);
+          return {
+            dataUrl,
+            mimeType: isPdf ? 'application/pdf' : 'image/jpeg',
+            fileName: isPdf
+              ? `${namePrefix}_${sanitize(file.name || `${station.ma_nha_tram}_${Date.now()}_${i + 1}.pdf`)}`
+              : `${namePrefix}_${station.ma_nha_tram}_${Date.now()}_${i + 1}.jpg`,
+            isPdf
+          };
+        })
+      );
 
       const updated = await saveBtsInspectionPhotos({
         id_nha_tram: station.id_nha_tram,
@@ -143,6 +147,19 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
       console.error('Lỗi cập nhật hạn kiểm định:', err);
     } finally {
       setUpdatingExpiryId(null);
+    }
+  };
+
+  const handleRemovePhoto = async (station: Station, photoUrl: string) => {
+    const key = `${station.id_nha_tram}__${photoUrl}`;
+    setRemovingPhotoKey(key);
+    try {
+      const updated = await removeBtsInspectionPhoto(station.id_nha_tram, photoUrl);
+      if (updated) onUpdated(updated);
+    } catch (err) {
+      console.error('Lỗi xóa ảnh niêm yết:', err);
+    } finally {
+      setRemovingPhotoKey(null);
     }
   };
 
@@ -325,31 +342,44 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
 
                                   {photos.length > 0 && (
                                     <div className="flex flex-wrap gap-2 pl-6.5">
-                                      {photos.map((url, idx) =>
-                                        isPdfUrl(url) ? (
-                                          <a
-                                            key={idx}
-                                            href={url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="w-14 h-14 rounded-lg border border-rose-200 bg-rose-50 flex flex-col items-center justify-center gap-0.5 hover:bg-rose-100 transition-colors shrink-0"
-                                            title="Mở file PDF niêm yết"
-                                          >
-                                            <FileText className="w-5 h-5 text-rose-500" />
-                                            <span className="text-[9px] font-bold text-rose-600">PDF</span>
-                                          </a>
-                                        ) : (
-                                          <button
-                                            key={idx}
-                                            type="button"
-                                            onClick={() => openLightbox(station, photos, idx)}
-                                            className="w-14 h-14 rounded-lg border border-slate-200 overflow-hidden shrink-0 hover:ring-2 hover:ring-vnpt-400 transition-all cursor-pointer"
-                                            title="Xem ảnh niêm yết"
-                                          >
-                                            <img src={url} alt="Ảnh niêm yết kiểm định" className="w-full h-full object-cover" />
-                                          </button>
-                                        )
-                                      )}
+                                      {photos.map((url, idx) => {
+                                        const removeKey = `${station.id_nha_tram}__${url}`;
+                                        const isRemoving = removingPhotoKey === removeKey;
+                                        return (
+                                          <div key={idx} className="relative group shrink-0">
+                                            {isPdfUrl(url) ? (
+                                              <a
+                                                href={url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="w-14 h-14 rounded-lg border border-rose-200 bg-rose-50 flex flex-col items-center justify-center gap-0.5 hover:bg-rose-100 transition-colors"
+                                                title="Mở file PDF niêm yết"
+                                              >
+                                                <FileText className="w-5 h-5 text-rose-500" />
+                                                <span className="text-[9px] font-bold text-rose-600">PDF</span>
+                                              </a>
+                                            ) : (
+                                              <button
+                                                type="button"
+                                                onClick={() => openLightbox(station, photos, idx)}
+                                                className="w-14 h-14 rounded-lg border border-slate-200 overflow-hidden hover:ring-2 hover:ring-vnpt-400 transition-all cursor-pointer"
+                                                title="Xem ảnh niêm yết"
+                                              >
+                                                <img src={url} alt="Ảnh niêm yết kiểm định" className="w-full h-full object-cover" />
+                                              </button>
+                                            )}
+                                            <button
+                                              type="button"
+                                              disabled={isRemoving}
+                                              onClick={() => handleRemovePhoto(station, url)}
+                                              className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 rounded-full bg-slate-700/90 text-white flex items-center justify-center hover:bg-rose-600 active:scale-95 transition-all cursor-pointer disabled:opacity-50 shadow-sm"
+                                              title="Xóa để thay file khác"
+                                            >
+                                              {isRemoving ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <X className="w-2.5 h-2.5" />}
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
                                     </div>
                                   )}
                                 </div>
