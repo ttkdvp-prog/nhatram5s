@@ -48,7 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <Radio className="w-6 h-6 text-sky-200 animate-pulse" />
             </div>
             <div>
-              <h1 className="font-extrabold text-xl tracking-tight text-white leading-tight">NHÀ TRẠM 5S</h1>
+              <h1 className="font-extrabold text-xl tracking-tight text-white leading-tight">NHÀ TRẠM</h1>
               <p className="text-xs text-sky-200 font-medium tracking-wide">Trung tâm Hạ tầng</p>
             </div>
           </div>

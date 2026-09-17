@@ -248,7 +248,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="bg-vnpt-500 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="z-10">
           <h2 className="text-2xl font-black tracking-tight uppercase flex items-center gap-2">
-            DASHBOARD NHÀ TRẠM 5S
+            DASHBOARD NHÀ TRẠM
           </h2>
           <p className="text-sm text-sky-100 mt-1 font-medium">
             Theo dõi cải thiện điều kiện lao động tại Trung tâm Hạ tầng - VNPT Phú Thọ
