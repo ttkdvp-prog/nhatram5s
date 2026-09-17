@@ -20,6 +20,43 @@ import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
 
 const isPdfUrl = (url: string) => /\.pdf(\?|$)/i.test(url) || url.includes('drive.google.com/file') || url.startsWith('data:application/pdf');
 
+// Backend luôn trả ngày dạng dd/MM/yyyy (Utilities.formatDate) - chuyển sang Date để so sánh hạn dùng
+const parseVnDate = (s?: string): Date | null => {
+  if (!s) return null;
+  const [day, month, year] = s.trim().split(/[\/\-]/).map(Number);
+  if (!day || !month || !year) return null;
+  const d = new Date(year, month - 1, day);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+interface CertInfo {
+  type: 'kiem_dinh' | 'cong_bo';
+  label: string;
+  number: string;
+  expiryDate?: string;
+}
+
+// Trạm có thể có cả 2 loại giấy (kiểm định + công bố) - chỉ hiện 1 dòng, ưu tiên loại có
+// ngày hết hạn xa hơn (còn hiệu lực lâu hơn). Nếu chỉ có 1 loại thì hiện loại đó.
+const getPreferredCert = (station: Station): CertInfo | null => {
+  const kiemDinh: CertInfo | null = station.GCN_kiem_dinh
+    ? { type: 'kiem_dinh', label: 'Số GCN kiểm định', number: station.GCN_kiem_dinh, expiryDate: station.ngay_het_han_kiem_dinh }
+    : null;
+  const congBo: CertInfo | null = station.GCN_cong_bo
+    ? { type: 'cong_bo', label: 'Số GCN công bố', number: station.GCN_cong_bo, expiryDate: station.ngay_het_han_cong_bo }
+    : null;
+
+  if (kiemDinh && congBo) {
+    const dKiemDinh = parseVnDate(kiemDinh.expiryDate);
+    const dCongBo = parseVnDate(congBo.expiryDate);
+    if (dKiemDinh && dCongBo) return dKiemDinh.getTime() >= dCongBo.getTime() ? kiemDinh : congBo;
+    if (dKiemDinh) return kiemDinh;
+    if (dCongBo) return congBo;
+    return kiemDinh;
+  }
+  return kiemDinh || congBo;
+};
+
 interface BtsInspectionViewProps {
   stations: Station[];
   btsInspections: BtsInspection[];
@@ -323,12 +360,16 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                                       <div className="min-w-0">
                                         <div className="font-bold text-slate-800 text-sm truncate">{station.ten_nha_tram}</div>
                                         <div className="text-xs text-slate-500 font-medium">{station.ma_nha_tram} • {station.dia_ban}</div>
-                                        {(station.GCN_kiem_dinh || station.GCN_cong_bo) && (
-                                          <div className="text-[11px] text-vnpt-700 font-semibold mt-0.5 space-x-3">
-                                            {station.GCN_kiem_dinh && <span>Số GCN kiểm định: {station.GCN_kiem_dinh}</span>}
-                                            {station.GCN_cong_bo && <span>Số GCN công bố: {station.GCN_cong_bo}</span>}
-                                          </div>
-                                        )}
+                                        {(() => {
+                                          const cert = getPreferredCert(station);
+                                          if (!cert) return null;
+                                          return (
+                                            <div className="text-[11px] text-vnpt-700 font-semibold mt-0.5">
+                                              {cert.label}: {cert.number}
+                                              {cert.expiryDate && <span className="text-slate-500 font-medium"> • Hết hạn: {cert.expiryDate}</span>}
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                     </div>
 
