@@ -78,74 +78,84 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
     input?.click();
   };
 
-  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const station = pendingStationRef.current;
     const files = e.target.files;
     if (!station || !files || files.length === 0) return;
     pendingStationRef.current = null;
     const inputEl = e.target;
+    const fileList = Array.from(files);
+    inputEl.value = '';
+
+    // Hiện ảnh/PDF NGAY LẬP TỨC bằng blob URL của chính file vừa chọn (tạo tức thời, không
+    // cần đọc/nén gì cả) - trước khi làm bất kỳ việc nặng nào (nén ảnh, tải lên Drive).
+    // Việc nén + tải lên chạy ngầm phía sau và tự thay bằng link thật khi xong.
+    const previewUrls = fileList.map(file => {
+      const blobUrl = URL.createObjectURL(file);
+      return file.type === 'application/pdf' ? blobUrl + '#.pdf' : blobUrl;
+    });
+
+    const existing = getInspection(station.id_nha_tram);
+    const optimisticPhotos = [...(existing?.anh_niem_yet_list || []), ...previewUrls];
+    onUpdated({
+      id_kiem_dinh: existing?.id_kiem_dinh || 'BTS' + station.id_nha_tram,
+      id_nha_tram: station.id_nha_tram,
+      ma_nha_tram: station.ma_nha_tram,
+      ten_nha_tram: station.ten_nha_tram,
+      to_ha_tang: station.to_ha_tang,
+      nguoi_phu_trach: station.nguoi_phu_trach,
+      ma_nv: station.ma_nv,
+      trang_thai: 'Đã dán',
+      anh_niem_yet_list: optimisticPhotos,
+      ngay_dan: existing?.ngay_dan || new Date().toLocaleDateString('vi-VN'),
+      nguoi_tai: existing?.nguoi_tai || station.nguoi_phu_trach || 'Không xác định',
+      thoi_diem_cap_nhat: new Date().toLocaleString('vi-VN'),
+      han_kiem_dinh: existing?.han_kiem_dinh
+    });
 
     setUploadingStationId(station.id_nha_tram);
-    try {
-      const sanitize = (s: string) => s.replace(/[\\/:*?"<>|]/g, '').trim();
-      const namePrefix = `${sanitize(station.to_ha_tang || '')}_${sanitize(station.nguoi_phu_trach || '')}`.replace(/\s+/g, '');
+    (async () => {
+      try {
+        const sanitize = (s: string) => s.replace(/[\\/:*?"<>|]/g, '').trim();
+        const namePrefix = `${sanitize(station.to_ha_tang || '')}_${sanitize(station.nguoi_phu_trach || '')}`.replace(/\s+/g, '');
 
-      // Nén/đọc song song tất cả file cùng lúc thay vì tuần tự để rút ngắn thời gian chờ
-      const uploadFiles: BtsUploadFile[] = await Promise.all(
-        Array.from(files).map(async (file, i) => {
-          const isPdf = file.type === 'application/pdf';
-          // Ảnh niêm yết chỉ cần đủ rõ để đọc chữ -> nén nhỏ + nhanh hơn ảnh minh chứng 5S thông thường
-          const dataUrl = isPdf ? await readFileAsDataUrl(file) : await compressImageFile(file, 1280, 1280, 0.72);
-          return {
-            dataUrl,
-            mimeType: isPdf ? 'application/pdf' : 'image/jpeg',
-            fileName: isPdf
-              ? `${namePrefix}_${sanitize(file.name || `${station.ma_nha_tram}_${Date.now()}_${i + 1}.pdf`)}`
-              : `${namePrefix}_${station.ma_nha_tram}_${Date.now()}_${i + 1}.jpg`,
-            isPdf
-          };
-        })
-      );
-      inputEl.value = '';
+        // Nén/đọc song song tất cả file cùng lúc thay vì tuần tự để rút ngắn thời gian chờ
+        const uploadFiles: BtsUploadFile[] = await Promise.all(
+          fileList.map(async (file, i) => {
+            const isPdf = file.type === 'application/pdf';
+            // Ảnh niêm yết chỉ cần đủ rõ để đọc chữ -> nén nhỏ + nhanh hơn ảnh minh chứng 5S thông thường
+            const dataUrl = isPdf ? await readFileAsDataUrl(file) : await compressImageFile(file, 1280, 1280, 0.72);
+            return {
+              dataUrl,
+              mimeType: isPdf ? 'application/pdf' : 'image/jpeg',
+              fileName: isPdf
+                ? `${namePrefix}_${sanitize(file.name || `${station.ma_nha_tram}_${Date.now()}_${i + 1}.pdf`)}`
+                : `${namePrefix}_${station.ma_nha_tram}_${Date.now()}_${i + 1}.jpg`,
+              isPdf
+            };
+          })
+        );
 
-      // Hiển thị ảnh ngay lập tức (dùng luôn dữ liệu vừa nén ở máy) thay vì đợi tải lên
-      // Google Drive xong mới hiện - phần tải lên chạy ngầm phía sau và tự thay bằng link thật.
-      const existing = getInspection(station.id_nha_tram);
-      const optimisticPhotos = [...(existing?.anh_niem_yet_list || []), ...uploadFiles.map(f => f.dataUrl)];
-      onUpdated({
-        id_kiem_dinh: existing?.id_kiem_dinh || 'BTS' + station.id_nha_tram,
-        id_nha_tram: station.id_nha_tram,
-        ma_nha_tram: station.ma_nha_tram,
-        ten_nha_tram: station.ten_nha_tram,
-        to_ha_tang: station.to_ha_tang,
-        nguoi_phu_trach: station.nguoi_phu_trach,
-        ma_nv: station.ma_nv,
-        trang_thai: 'Đã dán',
-        anh_niem_yet_list: optimisticPhotos,
-        ngay_dan: existing?.ngay_dan || new Date().toLocaleDateString('vi-VN'),
-        nguoi_tai: existing?.nguoi_tai || station.nguoi_phu_trach || 'Không xác định',
-        thoi_diem_cap_nhat: new Date().toLocaleString('vi-VN'),
-        han_kiem_dinh: existing?.han_kiem_dinh
-      });
-      setUploadingStationId(null);
+        const updated = await saveBtsInspectionPhotos({
+          id_nha_tram: station.id_nha_tram,
+          ma_nha_tram: station.ma_nha_tram,
+          ten_nha_tram: station.ten_nha_tram,
+          to_ha_tang: station.to_ha_tang,
+          nguoi_phu_trach: station.nguoi_phu_trach,
+          ma_nv: station.ma_nv,
+          nguoi_tai: station.nguoi_phu_trach || 'Không xác định',
+          photoFiles: uploadFiles
+        });
 
-      const updated = await saveBtsInspectionPhotos({
-        id_nha_tram: station.id_nha_tram,
-        ma_nha_tram: station.ma_nha_tram,
-        ten_nha_tram: station.ten_nha_tram,
-        to_ha_tang: station.to_ha_tang,
-        nguoi_phu_trach: station.nguoi_phu_trach,
-        ma_nv: station.ma_nv,
-        nguoi_tai: station.nguoi_phu_trach || 'Không xác định',
-        photoFiles: uploadFiles
-      });
-
-      // Thay ảnh tạm (base64) bằng link Drive thật sau khi tải lên xong
-      onUpdated(updated);
-    } catch (err) {
-      console.error('Lỗi tải ảnh niêm yết BTS:', err);
-      setUploadingStationId(null);
-    }
+        // Thay ảnh tạm (blob URL) bằng link Drive thật sau khi tải lên xong
+        onUpdated(updated);
+      } catch (err) {
+        console.error('Lỗi tải ảnh niêm yết BTS:', err);
+      } finally {
+        setUploadingStationId(null);
+        previewUrls.forEach(u => URL.revokeObjectURL(u.replace(/#\.pdf$/, '')));
+      }
+    })();
   };
 
   const handleToggleExpiry = (station: Station, current?: string) => {
