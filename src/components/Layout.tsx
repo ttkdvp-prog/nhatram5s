@@ -6,8 +6,9 @@ import { SurveyFormView } from './SurveyFormView';
 import { StationRecordsView } from './StationRecordsView';
 import { PhotoProgressView } from './PhotoProgressView';
 import { ReportsView } from './ReportsView';
+import { BtsInspectionView } from './BtsInspectionView';
 import { fetchDashboardData, saveSurveyForm } from '../services/api';
-import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary } from '../types';
+import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary, BtsInspection } from '../types';
 import { Menu } from 'lucide-react';
 
 export const Layout: React.FC = () => {
@@ -22,6 +23,7 @@ export const Layout: React.FC = () => {
   const [stations, setStations] = useState<Station[]>([]);
   const [records, setRecords] = useState<SurveyRecord[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [btsInspections, setBtsInspections] = useState<BtsInspection[]>([]);
   const [selectedRecordForForm, setSelectedRecordForForm] = useState<SurveyRecord | null>(null);
 
   const loadData = async (silent = false) => {
@@ -32,8 +34,16 @@ export const Layout: React.FC = () => {
     setStations(data.stations);
     setRecords(data.records);
     setRecommendations(data.recommendations);
+    setBtsInspections(data.btsInspections || []);
     setIsLive(data.isLive);
     if (!silent) setLoading(false);
+  };
+
+  const handleBtsInspectionUpdated = (updated: BtsInspection) => {
+    setBtsInspections(prev => {
+      const exists = prev.some(b => b.id_nha_tram === updated.id_nha_tram);
+      return exists ? prev.map(b => (b.id_nha_tram === updated.id_nha_tram ? updated : b)) : [...prev, updated];
+    });
   };
 
   useEffect(() => {
@@ -120,6 +130,14 @@ export const Layout: React.FC = () => {
               stations={stations}
               records={records}
               onNavigateToSurvey={navigateToSurvey}
+            />
+          )}
+
+          {activeTab === 'btsInspection' && (
+            <BtsInspectionView
+              stations={stations}
+              btsInspections={btsInspections}
+              onUpdated={handleBtsInspectionUpdated}
             />
           )}
 

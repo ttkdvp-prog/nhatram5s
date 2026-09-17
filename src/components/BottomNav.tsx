@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, ClipboardCheck, FolderKanban, Camera, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, ClipboardCheck, FolderKanban, Camera, BarChart3, ShieldCheck } from 'lucide-react';
 import { ActiveTab } from './Sidebar';
 
 interface BottomNavProps {
@@ -11,6 +11,7 @@ const navItems = [
   { id: 'survey' as ActiveTab, label: 'Triển khai', icon: ClipboardCheck },
   { id: 'records' as ActiveTab, label: 'Hồ sơ', icon: FolderKanban },
   { id: 'photos' as ActiveTab, label: 'Ảnh 5S', icon: Camera },
+  { id: 'btsInspection' as ActiveTab, label: 'KĐ BTS', icon: ShieldCheck },
   { id: 'reports' as ActiveTab, label: 'Báo cáo', icon: BarChart3 },
   { id: 'overview' as ActiveTab, label: 'Tổng quan', icon: LayoutDashboard },
 ];

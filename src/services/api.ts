@@ -1,4 +1,4 @@
-import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary } from '../types';
+import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary, BtsInspection } from '../types';
 import { INITIAL_KPIS, INITIAL_ORG_SCORES, INITIAL_STATIONS, INITIAL_RECORDS, INITIAL_RECOMMENDATIONS } from '../data/initialData';
 import { toLh3Url, parseSheetPhotoUrls, safeLocalStorageSet } from '../utils/imageHelper';
 
@@ -6,6 +6,7 @@ const LOCAL_STORAGE_KEY_URL = 'nhatram5s_appscript_url';
 const LOCAL_STORAGE_KEY_STATIONS = 'nhatram5s_stations_data';
 const LOCAL_STORAGE_KEY_RECORDS = 'nhatram5s_records_data';
 const LOCAL_STORAGE_KEY_RECOMMENDATIONS = 'nhatram5s_recs_data';
+const LOCAL_STORAGE_KEY_BTS = 'nhatram5s_bts_inspections_data';
 
 // 1 Biến API duy nhất trỏ về Google Apps Script Web App Backend (Code.gs)
 export const DEFAULT_APPS_SCRIPT_URL =
@@ -134,11 +135,16 @@ export const fetchDashboardData = async () => {
         if (Array.isArray(json.data.recommendations)) {
           safeLocalStorageSet(LOCAL_STORAGE_KEY_RECOMMENDATIONS, JSON.stringify(json.data.recommendations));
         }
+        const btsInspections: BtsInspection[] = Array.isArray(json.data.btsInspections)
+          ? json.data.btsInspections.map((b: any) => ({ ...b, anh_niem_yet_list: parseSheetPhotoUrls(b.anh_niem_yet_list) }))
+          : getLocalBtsInspections();
+        safeLocalStorageSet(LOCAL_STORAGE_KEY_BTS, JSON.stringify(btsInspections));
 
         return {
           stations: Array.isArray(json.data.stations) && json.data.stations.length ? json.data.stations : getLocalStations(),
           records: recordsWithPhotos,
           recommendations: Array.isArray(json.data.recommendations) ? json.data.recommendations : getLocalRecommendations(),
+          btsInspections,
           kpis: json.data.stats || INITIAL_KPIS,
           orgScores: INITIAL_ORG_SCORES,
           isLive: true
@@ -153,6 +159,7 @@ export const fetchDashboardData = async () => {
     stations: getLocalStations(),
     records: getLocalRecords(),
     recommendations: getLocalRecommendations(),
+    btsInspections: getLocalBtsInspections(),
     kpis: INITIAL_KPIS,
     orgScores: INITIAL_ORG_SCORES,
     isLive: false
@@ -172,6 +179,111 @@ export const getLocalRecords = (): SurveyRecord[] => {
 export const getLocalRecommendations = (): Recommendation[] => {
   const raw = localStorage.getItem(LOCAL_STORAGE_KEY_RECOMMENDATIONS);
   return raw ? JSON.parse(raw) : INITIAL_RECOMMENDATIONS;
+};
+
+export const getLocalBtsInspections = (): BtsInspection[] => {
+  const raw = localStorage.getItem(LOCAL_STORAGE_KEY_BTS);
+  return raw ? JSON.parse(raw) : [];
+};
+
+/**
+ * Tải ảnh niêm yết kiểm định BTS lên thư mục Google Drive riêng (anhkiemdinhBTS)
+ * và ghi nhận trạng thái "Đã dán" cho trạm tương ứng, đồng bộ cho mọi người xem.
+ */
+export interface SaveBtsInspectionParams {
+  id_nha_tram: string;
+  ma_nha_tram: string;
+  ten_nha_tram: string;
+  to_ha_tang: string;
+  nguoi_phu_trach: string;
+  ma_nv?: string;
+  nguoi_tai: string;
+  photoFiles: string[]; // base64 data URLs
+}
+
+export const saveBtsInspectionPhotos = async (params: SaveBtsInspectionParams): Promise<BtsInspection> => {
+  const url = getAppScriptUrl();
+  const uploadedUrls: string[] = [];
+
+  for (let i = 0; i < params.photoFiles.length; i++) {
+    const base64Data = params.photoFiles[i];
+    if (url) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'uploadBtsImage',
+            data: {
+              base64Data,
+              fileName: `BTS_NiemYet_${params.ma_nha_tram}_${Date.now()}_${i + 1}.jpg`,
+              stationCode: params.ma_nha_tram
+            }
+          }),
+          redirect: 'follow'
+        });
+        const json = await response.json();
+        if (json.status === 'success' && json.data?.lh3Url) {
+          uploadedUrls.push(toLh3Url(json.data.lh3Url));
+          continue;
+        }
+      } catch (err) {
+        console.warn('BTS photo upload failed:', err);
+      }
+    }
+    uploadedUrls.push(base64Data);
+  }
+
+  const currentList = getLocalBtsInspections();
+  const existing = currentList.find(b => b.id_nha_tram === params.id_nha_tram);
+  const mergedPhotos = [...(existing?.anh_niem_yet_list || []), ...uploadedUrls];
+
+  const updated: BtsInspection = {
+    id_kiem_dinh: existing?.id_kiem_dinh || 'BTS' + String(currentList.length + 1).padStart(4, '0'),
+    id_nha_tram: params.id_nha_tram,
+    ma_nha_tram: params.ma_nha_tram,
+    ten_nha_tram: params.ten_nha_tram,
+    to_ha_tang: params.to_ha_tang,
+    nguoi_phu_trach: params.nguoi_phu_trach,
+    ma_nv: params.ma_nv,
+    trang_thai: 'Đã dán',
+    anh_niem_yet_list: mergedPhotos,
+    ngay_dan: new Date().toLocaleDateString('vi-VN'),
+    nguoi_tai: params.nguoi_tai,
+    thoi_diem_cap_nhat: new Date().toLocaleString('vi-VN')
+  };
+
+  if (url) {
+    try {
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'saveBtsInspection',
+          data: {
+            id_nha_tram: params.id_nha_tram,
+            ma_nha_tram: params.ma_nha_tram,
+            ten_nha_tram: params.ten_nha_tram,
+            to_ha_tang: params.to_ha_tang,
+            nguoi_phu_trach: params.nguoi_phu_trach,
+            ma_nv: params.ma_nv,
+            nguoi_tai: params.nguoi_tai,
+            anh_niem_yet_list: uploadedUrls
+          }
+        }),
+        redirect: 'follow'
+      });
+    } catch (err) {
+      console.warn('saveBtsInspection error:', err);
+    }
+  }
+
+  const updatedList = existing
+    ? currentList.map(b => (b.id_nha_tram === params.id_nha_tram ? updated : b))
+    : [...currentList, updated];
+  safeLocalStorageSet(LOCAL_STORAGE_KEY_BTS, JSON.stringify(updatedList));
+
+  return updated;
 };
 
 /**

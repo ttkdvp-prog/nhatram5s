@@ -80,6 +80,21 @@ export interface Recommendation {
   nguoi_tao: string;
 }
 
+export interface BtsInspection {
+  id_kiem_dinh: string;
+  id_nha_tram: string;
+  ma_nha_tram: string;
+  ten_nha_tram: string;
+  to_ha_tang: string;
+  nguoi_phu_trach: string;
+  ma_nv?: string;
+  trang_thai: 'Đã dán' | 'Chưa dán' | string;
+  anh_niem_yet_list?: string[];
+  ngay_dan?: string;
+  nguoi_tai?: string;
+  thoi_diem_cap_nhat?: string;
+}
+
 export interface DashboardKpi {
   totalPlanned: number;
   surveyed: number;

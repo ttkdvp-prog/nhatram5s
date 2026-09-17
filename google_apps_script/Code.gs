@@ -21,10 +21,13 @@ const SHEET_NAMES = {
   RECOMMENDATIONS: 'KIEN_NGHI',
   PHOTOS: 'ANH_MINH_CHUNG',
   USERS: 'NGUOI_DUNG',
-  CATEGORIES: 'DANH_MUC'
+  CATEGORIES: 'DANH_MUC',
+  BTS_INSPECTIONS: 'KIEM_DINH_BTS'
 };
 
 const DRIVE_FOLDER_NAME = 'NHATRAM_5S_MINH_CHUNG';
+// Thư mục lưu ảnh niêm yết kiểm định BTS - nằm ở gốc My Drive (G:\My Drive\anhkiemdinhBTS)
+const BTS_DRIVE_FOLDER_NAME = 'anhkiemdinhBTS';
 
 /**
  * XỬ LÝ GET REQUEST (Lấy dữ liệu từ Google Sheets)
@@ -65,12 +68,15 @@ function doGet(e) {
       result = getSheetData(SHEET_NAMES.RECOMMENDATIONS);
     } else if (action === 'getPhotos') {
       result = getSheetData(SHEET_NAMES.PHOTOS);
+    } else if (action === 'getBtsInspections') {
+      result = getBtsInspectionsData();
     } else if (action === 'getAll') {
       result = {
         stations: getSheetData(SHEET_NAMES.STATIONS),
         records: getSheetData(SHEET_NAMES.RECORDS),
         recommendations: getSheetData(SHEET_NAMES.RECOMMENDATIONS),
         photos: getSheetData(SHEET_NAMES.PHOTOS),
+        btsInspections: getBtsInspectionsData(),
         stats: getStatsData()
       };
     } else if (action === 'initData') {
@@ -105,6 +111,10 @@ function doPost(e) {
       response = handleSaveSurvey(postData.data);
     } else if (action === 'uploadImage') {
       response = handleUploadImageToDrive(postData.data);
+    } else if (action === 'uploadBtsImage') {
+      response = handleUploadImageToDrive(Object.assign({}, postData.data, { folderName: BTS_DRIVE_FOLDER_NAME }));
+    } else if (action === 'saveBtsInspection') {
+      response = handleSaveBtsInspection(postData.data);
     } else if (action === 'updateRecommendationStatus') {
       response = handleUpdateRecommendationStatus(postData.data);
     } else if (action === 'addStation') {
@@ -176,11 +186,18 @@ function formatDateValue(val) {
  * Lấy hoặc tạo thư mục chứa ảnh minh chứng 5S trên Google Drive
  */
 function getOrCreatePhotoFolder() {
-  var folders = DriveApp.getFoldersByName(DRIVE_FOLDER_NAME);
+  return getOrCreateFolderByName(DRIVE_FOLDER_NAME);
+}
+
+/**
+ * Lấy hoặc tạo một thư mục theo tên bất kỳ ở gốc My Drive
+ */
+function getOrCreateFolderByName(folderName) {
+  var folders = DriveApp.getFoldersByName(folderName);
   if (folders.hasNext()) {
     return folders.next();
   }
-  return DriveApp.createFolder(DRIVE_FOLDER_NAME);
+  return DriveApp.createFolder(folderName);
 }
 
 /**
@@ -200,7 +217,7 @@ function handleUploadImageToDrive(data) {
     var decoded = Utilities.base64Decode(cleanBase64);
     var blob = Utilities.newBlob(decoded, mimeType, fileName);
 
-    var folder = getOrCreatePhotoFolder();
+    var folder = data.folderName ? getOrCreateFolderByName(data.folderName) : getOrCreatePhotoFolder();
     var file = folder.createFile(blob);
 
     // Cấp quyền công khai "Anyone with link can view" để link LH3 tải tức thì không bị lỗi
@@ -482,6 +499,80 @@ function handleAddStation(data) {
 }
 
 /**
+ * Đọc dữ liệu công bố kiểm định BTS, chuẩn hóa danh sách ảnh niêm yết
+ */
+function getBtsInspectionsData() {
+  var rows = getSheetData(SHEET_NAMES.BTS_INSPECTIONS);
+  return rows.map(function(row) {
+    var list = row.anh_niem_yet_list ? String(row.anh_niem_yet_list).split(/[\n,;]+/).map(function(s) { return toLh3Url(s.trim()); }).filter(Boolean) : [];
+    row.anh_niem_yet_list = list;
+    return row;
+  });
+}
+
+/**
+ * Ghi nhận / cập nhật trạng thái công bố kiểm định BTS cho 1 trạm (gộp ảnh mới vào danh sách ảnh cũ)
+ */
+function handleSaveBtsInspection(data) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(SHEET_NAMES.BTS_INSPECTIONS);
+    if (!sheet) return { status: 'error', message: 'Không tìm thấy sheet KIEM_DINH_BTS' };
+
+    var idNhaTram = data.id_nha_tram || '';
+    if (!idNhaTram) return { status: 'error', message: 'Thiếu id_nha_tram' };
+
+    var newUrls = Array.isArray(data.anh_niem_yet_list) ? data.anh_niem_yet_list.map(toLh3Url).filter(Boolean) : [];
+    var currentDateStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy');
+    var currentTimestampStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy HH:mm:ss');
+
+    var values = sheet.getDataRange().getValues();
+    var headers = values[0];
+    var idCol = headers.indexOf('id_nha_tram');
+    var photosCol = headers.indexOf('anh_niem_yet_list');
+    var statusCol = headers.indexOf('trang_thai');
+    var dateCol = headers.indexOf('ngay_dan');
+    var uploaderCol = headers.indexOf('nguoi_tai');
+    var updatedAtCol = headers.indexOf('thoi_diem_cap_nhat');
+
+    for (var i = 1; i < values.length; i++) {
+      if (String(values[i][idCol]) === String(idNhaTram)) {
+        var existingUrls = values[i][photosCol] ? String(values[i][photosCol]).split(/[\n,;]+/).map(function(s) { return s.trim(); }).filter(Boolean) : [];
+        var mergedUrls = existingUrls.concat(newUrls);
+        sheet.getRange(i + 1, photosCol + 1).setValue(mergedUrls.join(', '));
+        sheet.getRange(i + 1, statusCol + 1).setValue('Đã dán');
+        sheet.getRange(i + 1, dateCol + 1).setValue(currentDateStr);
+        sheet.getRange(i + 1, uploaderCol + 1).setValue(data.nguoi_tai || '');
+        sheet.getRange(i + 1, updatedAtCol + 1).setValue(currentTimestampStr);
+        SpreadsheetApp.flush();
+        return { status: 'success', message: 'Cập nhật công bố kiểm định BTS thành công!' };
+      }
+    }
+
+    var newId = 'BTS' + String(sheet.getLastRow()).padStart(4, '0');
+    sheet.appendRow([
+      newId,
+      idNhaTram,
+      data.ma_nha_tram || '',
+      data.ten_nha_tram || '',
+      data.to_ha_tang || '',
+      data.nguoi_phu_trach || '',
+      data.ma_nv || '',
+      'Đã dán',
+      newUrls.join(', '),
+      currentDateStr,
+      data.nguoi_tai || '',
+      currentTimestampStr
+    ]);
+
+    SpreadsheetApp.flush();
+    return { status: 'success', message: 'Ghi nhận công bố kiểm định BTS thành công!', id: newId };
+  } catch (e) {
+    return { status: 'error', message: 'Lỗi ghi nhận kiểm định BTS: ' + e.toString() };
+  }
+}
+
+/**
  * Tính toán thống kê KPI động từ Sheet HOSO_5S và DM_NHA_TRAM
  */
 function getStatsData() {
@@ -576,7 +667,8 @@ function setupSheetsIfMissing() {
     [SHEET_NAMES.RECORDS]: ['id_ho_so', 'id_nha_tram', 'ma_nha_tram', 'ten_nha_tram', 'to_ha_tang', 'ngay_khao_sat', 'dot_danh_gia', 'nguoi_khao_sat', 'email_nguoi_khao_sat', 's1_truoc', 's2_truoc', 's3_truoc', 's4_truoc', 's5_truoc', 'tong_truoc', 's1_sau', 's2_sau', 's3_sau', 's4_sau', 's5_sau', 'tong_sau', 'muc_cai_thien', 'xep_loai_truoc', 'xep_loai_sau', 'nguy_co_nghiem_trong', 'duoc_cong_nhan', 'noi_dung_thuc_hien', 'anh_truoc_url', 'anh_sau_url', 'ngay_hoan_thanh', 'ngay_tai_kiem_tra', 'trang_thai_ho_so', 'canh_bao_tai_kiem_tra'],
     [SHEET_NAMES.RECOMMENDATIONS]: ['id_kien_nghi', 'id_ho_so', 'id_nha_tram', 'ma_nha_tram', 'to_ha_tang', 'ngay_phat_hien', 'loai_nguy_co', 'muc_uu_tien', 'noi_dung_kien_nghi', 'pham_vi_xu_ly', 'dau_moi_xu_ly', 'han_xu_ly', 'trang_thai', 'ngay_hoan_thanh', 'anh_truoc_url', 'anh_sau_url', 'qua_han', 'so_ngay_qua_han', 'nguoi_tao'],
     [SHEET_NAMES.PHOTOS]: ['id_anh', 'id_ho_so', 'id_nha_tram', 'ma_nha_tram', 'loai_anh', 'hang_muc_5s', 'url_drive', 'mo_ta', 'ngay_chup', 'nguoi_tai', 'thoi_diem_tai'],
-    [SHEET_NAMES.HISTORY]: ['id_lich_su', 'id_ho_so', 'id_nha_tram', 'ma_nha_tram', 'to_ha_tang', 'lan_danh_gia', 'ngay_danh_gia', 'tong_diem', 'xep_loai', 'nguy_co_nghiem_trong', 'ket_qua_duy_tri', 'anh_url', 'ghi_chu', 'nguoi_thuc_hien', 'thoi_diem_cap_nhat']
+    [SHEET_NAMES.HISTORY]: ['id_lich_su', 'id_ho_so', 'id_nha_tram', 'ma_nha_tram', 'to_ha_tang', 'lan_danh_gia', 'ngay_danh_gia', 'tong_diem', 'xep_loai', 'nguy_co_nghiem_trong', 'ket_qua_duy_tri', 'anh_url', 'ghi_chu', 'nguoi_thuc_hien', 'thoi_diem_cap_nhat'],
+    [SHEET_NAMES.BTS_INSPECTIONS]: ['id_kiem_dinh', 'id_nha_tram', 'ma_nha_tram', 'ten_nha_tram', 'to_ha_tang', 'nguoi_phu_trach', 'ma_nv', 'trang_thai', 'anh_niem_yet_list', 'ngay_dan', 'nguoi_tai', 'thoi_diem_cap_nhat']
   };
 
   Object.keys(defaultHeaders).forEach(function(sheetName) {
