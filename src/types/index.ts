@@ -93,6 +93,7 @@ export interface BtsInspection {
   ngay_dan?: string;
   nguoi_tai?: string;
   thoi_diem_cap_nhat?: string;
+  han_kiem_dinh?: 'Còn hạn' | 'Hết hạn' | '' | string;
 }
 
 export interface DashboardKpi {

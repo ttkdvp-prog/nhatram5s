@@ -298,6 +298,61 @@ export const saveBtsInspectionPhotos = async (params: SaveBtsInspectionParams): 
   return updated;
 };
 
+export interface UpdateBtsExpiryParams {
+  id_nha_tram: string;
+  ma_nha_tram: string;
+  ten_nha_tram: string;
+  to_ha_tang: string;
+  nguoi_phu_trach: string;
+  ma_nv?: string;
+  han_kiem_dinh: 'Còn hạn' | 'Hết hạn' | '';
+}
+
+/**
+ * Cập nhật trạng thái hạn kiểm định (Còn hạn / Hết hạn) cho 1 trạm, đồng bộ cho mọi người xem.
+ */
+export const updateBtsExpiryStatus = async (params: UpdateBtsExpiryParams): Promise<BtsInspection> => {
+  const url = getAppScriptUrl();
+  const currentList = getLocalBtsInspections();
+  const existing = currentList.find(b => b.id_nha_tram === params.id_nha_tram);
+
+  const updated: BtsInspection = {
+    id_kiem_dinh: existing?.id_kiem_dinh || 'BTS' + String(currentList.length + 1).padStart(4, '0'),
+    id_nha_tram: params.id_nha_tram,
+    ma_nha_tram: params.ma_nha_tram,
+    ten_nha_tram: params.ten_nha_tram,
+    to_ha_tang: params.to_ha_tang,
+    nguoi_phu_trach: params.nguoi_phu_trach,
+    ma_nv: params.ma_nv,
+    trang_thai: existing?.trang_thai || 'Chưa dán',
+    anh_niem_yet_list: existing?.anh_niem_yet_list || [],
+    ngay_dan: existing?.ngay_dan,
+    nguoi_tai: existing?.nguoi_tai,
+    thoi_diem_cap_nhat: new Date().toLocaleString('vi-VN'),
+    han_kiem_dinh: params.han_kiem_dinh
+  };
+
+  if (url) {
+    try {
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'updateBtsExpiryStatus', data: params }),
+        redirect: 'follow'
+      });
+    } catch (err) {
+      console.warn('updateBtsExpiryStatus error:', err);
+    }
+  }
+
+  const updatedList = existing
+    ? currentList.map(b => (b.id_nha_tram === params.id_nha_tram ? updated : b))
+    : [...currentList, updated];
+  safeLocalStorageSet(LOCAL_STORAGE_KEY_BTS, JSON.stringify(updatedList));
+
+  return updated;
+};
+
 /**
  * Lưu phiếu khảo sát 5S vào Google Sheet qua Apps Script API duy nhất
  * Tự động đảm bảo 100% ảnh được upload lên Google Drive & ghép link LH3

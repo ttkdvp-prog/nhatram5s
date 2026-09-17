@@ -118,6 +118,8 @@ function doPost(e) {
       }));
     } else if (action === 'saveBtsInspection') {
       response = handleSaveBtsInspection(postData.data);
+    } else if (action === 'updateBtsExpiryStatus') {
+      response = handleUpdateBtsExpiryStatus(postData.data);
     } else if (action === 'updateRecommendationStatus') {
       response = handleUpdateRecommendationStatus(postData.data);
     } else if (action === 'addStation') {
@@ -606,6 +608,61 @@ function handleSaveBtsInspection(data) {
 }
 
 /**
+ * Cập nhật trạng thái hạn kiểm định (Còn hạn / Hết hạn / '') cho 1 trạm, độc lập với ảnh niêm yết.
+ * Tự tạo dòng mới nếu trạm đó chưa có bản ghi nào trong KIEM_DINH_BTS.
+ */
+function handleUpdateBtsExpiryStatus(data) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(SHEET_NAMES.BTS_INSPECTIONS);
+    if (!sheet) return { status: 'error', message: 'Không tìm thấy sheet KIEM_DINH_BTS' };
+
+    var idNhaTram = data.id_nha_tram || '';
+    if (!idNhaTram) return { status: 'error', message: 'Thiếu id_nha_tram' };
+
+    var hanKiemDinh = data.han_kiem_dinh || '';
+    var currentTimestampStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy HH:mm:ss');
+
+    var values = sheet.getDataRange().getValues();
+    var headers = values[0];
+    var idCol = headers.indexOf('id_nha_tram');
+    var hanCol = headers.indexOf('han_kiem_dinh');
+    var updatedAtCol = headers.indexOf('thoi_diem_cap_nhat');
+
+    for (var i = 1; i < values.length; i++) {
+      if (String(values[i][idCol]) === String(idNhaTram)) {
+        sheet.getRange(i + 1, hanCol + 1).setValue(hanKiemDinh);
+        sheet.getRange(i + 1, updatedAtCol + 1).setValue(currentTimestampStr);
+        SpreadsheetApp.flush();
+        return { status: 'success', message: 'Cập nhật trạng thái hạn kiểm định thành công!' };
+      }
+    }
+
+    var newId = 'BTS' + String(sheet.getLastRow()).padStart(4, '0');
+    sheet.appendRow([
+      newId,
+      idNhaTram,
+      data.ma_nha_tram || '',
+      data.ten_nha_tram || '',
+      data.to_ha_tang || '',
+      data.nguoi_phu_trach || '',
+      data.ma_nv || '',
+      'Chưa dán',
+      '',
+      '',
+      '',
+      currentTimestampStr,
+      hanKiemDinh
+    ]);
+
+    SpreadsheetApp.flush();
+    return { status: 'success', message: 'Ghi nhận trạng thái hạn kiểm định thành công!', id: newId };
+  } catch (e) {
+    return { status: 'error', message: 'Lỗi cập nhật hạn kiểm định: ' + e.toString() };
+  }
+}
+
+/**
  * Tính toán thống kê KPI động từ Sheet HOSO_5S và DM_NHA_TRAM
  */
 function getStatsData() {
@@ -687,6 +744,22 @@ function upgradeSheetHeaders() {
   } catch (e) {
     Logger.log('Lỗi upgradeSheetHeaders: ' + e);
   }
+
+  // Bổ sung cột han_kiem_dinh vào KIEM_DINH_BTS nếu sheet đã tồn tại từ trước và chưa có cột này
+  try {
+    var ss2 = SpreadsheetApp.getActiveSpreadsheet();
+    var btsSheet = ss2.getSheetByName(SHEET_NAMES.BTS_INSPECTIONS);
+    if (btsSheet && btsSheet.getLastRow() >= 1) {
+      var btsLastCol = btsSheet.getLastColumn();
+      var btsHeaders = btsSheet.getRange(1, 1, 1, btsLastCol).getValues()[0];
+      var hasHanKiemDinh = btsHeaders.some(function(h) { return String(h).toLowerCase().trim() === 'han_kiem_dinh'; });
+      if (!hasHanKiemDinh) {
+        btsSheet.getRange(1, btsLastCol + 1).setValue('han_kiem_dinh');
+      }
+    }
+  } catch (e2) {
+    Logger.log('Lỗi bổ sung cột han_kiem_dinh: ' + e2);
+  }
 }
 
 /**
@@ -701,7 +774,7 @@ function setupSheetsIfMissing() {
     [SHEET_NAMES.RECOMMENDATIONS]: ['id_kien_nghi', 'id_ho_so', 'id_nha_tram', 'ma_nha_tram', 'to_ha_tang', 'ngay_phat_hien', 'loai_nguy_co', 'muc_uu_tien', 'noi_dung_kien_nghi', 'pham_vi_xu_ly', 'dau_moi_xu_ly', 'han_xu_ly', 'trang_thai', 'ngay_hoan_thanh', 'anh_truoc_url', 'anh_sau_url', 'qua_han', 'so_ngay_qua_han', 'nguoi_tao'],
     [SHEET_NAMES.PHOTOS]: ['id_anh', 'id_ho_so', 'id_nha_tram', 'ma_nha_tram', 'loai_anh', 'hang_muc_5s', 'url_drive', 'mo_ta', 'ngay_chup', 'nguoi_tai', 'thoi_diem_tai'],
     [SHEET_NAMES.HISTORY]: ['id_lich_su', 'id_ho_so', 'id_nha_tram', 'ma_nha_tram', 'to_ha_tang', 'lan_danh_gia', 'ngay_danh_gia', 'tong_diem', 'xep_loai', 'nguy_co_nghiem_trong', 'ket_qua_duy_tri', 'anh_url', 'ghi_chu', 'nguoi_thuc_hien', 'thoi_diem_cap_nhat'],
-    [SHEET_NAMES.BTS_INSPECTIONS]: ['id_kiem_dinh', 'id_nha_tram', 'ma_nha_tram', 'ten_nha_tram', 'to_ha_tang', 'nguoi_phu_trach', 'ma_nv', 'trang_thai', 'anh_niem_yet_list', 'ngay_dan', 'nguoi_tai', 'thoi_diem_cap_nhat']
+    [SHEET_NAMES.BTS_INSPECTIONS]: ['id_kiem_dinh', 'id_nha_tram', 'ma_nha_tram', 'ten_nha_tram', 'to_ha_tang', 'nguoi_phu_trach', 'ma_nv', 'trang_thai', 'anh_niem_yet_list', 'ngay_dan', 'nguoi_tai', 'thoi_diem_cap_nhat', 'han_kiem_dinh']
   };
 
   Object.keys(defaultHeaders).forEach(function(sheetName) {

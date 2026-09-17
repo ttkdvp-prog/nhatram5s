@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { Station, BtsInspection } from '../types';
 import { compressImageFile, readFileAsDataUrl } from '../utils/imageHelper';
-import { saveBtsInspectionPhotos, BtsUploadFile } from '../services/api';
+import { saveBtsInspectionPhotos, updateBtsExpiryStatus, BtsUploadFile } from '../services/api';
 import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
 
 const isPdfUrl = (url: string) => /\.pdf(\?|$)/i.test(url) || url.includes('drive.google.com/file');
@@ -35,6 +35,7 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null);
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
   const [uploadingStationId, setUploadingStationId] = useState<string | null>(null);
+  const [updatingExpiryId, setUpdatingExpiryId] = useState<string | null>(null);
   const [lightboxPhotos, setLightboxPhotos] = useState<LightboxPhoto[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -119,6 +120,29 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
       setUploadingStationId(null);
       pendingStationRef.current = null;
       e.target.value = '';
+    }
+  };
+
+  const handleToggleExpiry = async (station: Station, current?: string) => {
+    const next: 'Còn hạn' | 'Hết hạn' | '' =
+      current === 'Còn hạn' ? 'Hết hạn' : current === 'Hết hạn' ? '' : 'Còn hạn';
+
+    setUpdatingExpiryId(station.id_nha_tram);
+    try {
+      const updated = await updateBtsExpiryStatus({
+        id_nha_tram: station.id_nha_tram,
+        ma_nha_tram: station.ma_nha_tram,
+        ten_nha_tram: station.ten_nha_tram,
+        to_ha_tang: station.to_ha_tang,
+        nguoi_phu_trach: station.nguoi_phu_trach,
+        ma_nv: station.ma_nv,
+        han_kiem_dinh: next
+      });
+      onUpdated(updated);
+    } catch (err) {
+      console.error('Lỗi cập nhật hạn kiểm định:', err);
+    } finally {
+      setUpdatingExpiryId(null);
     }
   };
 
@@ -217,6 +241,8 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                               const isPosted = inspection?.trang_thai === 'Đã dán';
                               const photos = inspection?.anh_niem_yet_list || [];
                               const isUploading = uploadingStationId === station.id_nha_tram;
+                              const hanKiemDinh = inspection?.han_kiem_dinh || '';
+                              const isUpdatingExpiry = updatingExpiryId === station.id_nha_tram;
 
                               return (
                                 <div
@@ -244,6 +270,29 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                                           Chưa dán
                                         </span>
                                       )}
+
+                                      <button
+                                        type="button"
+                                        disabled={isUpdatingExpiry}
+                                        onClick={() => handleToggleExpiry(station, hanKiemDinh)}
+                                        className={`flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full border transition-all cursor-pointer disabled:opacity-50 ${
+                                          hanKiemDinh === 'Còn hạn'
+                                            ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                                            : hanKiemDinh === 'Hết hạn'
+                                            ? 'bg-rose-500 text-white border-rose-500 shadow-sm'
+                                            : 'bg-transparent text-slate-300 border-slate-200'
+                                        }`}
+                                        title="Bấm để chuyển trạng thái: Còn hạn / Hết hạn / Chưa xác định"
+                                      >
+                                        {isUpdatingExpiry ? (
+                                          <Loader2 className="w-3 h-3 animate-spin" />
+                                        ) : hanKiemDinh === 'Còn hạn' ? (
+                                          <CheckCircle2 className="w-3 h-3" />
+                                        ) : hanKiemDinh === 'Hết hạn' ? (
+                                          <Circle className="w-3 h-3" />
+                                        ) : null}
+                                        {hanKiemDinh || 'Hạn kiểm định'}
+                                      </button>
 
                                       {isUploading ? (
                                         <span className="flex items-center gap-1.5 text-[11px] font-bold text-vnpt-600 px-2.5 py-1.5">
