@@ -225,7 +225,9 @@ export const saveBtsInspectionPhotos = async (params: SaveBtsInspectionParams): 
               base64Data: file.dataUrl,
               mimeType: file.mimeType,
               fileName: file.fileName || `BTS_NiemYet_${params.ma_nha_tram}_${Date.now()}_${i + 1}`,
-              stationCode: params.ma_nha_tram
+              stationCode: params.ma_nha_tram,
+              to_ha_tang: params.to_ha_tang,
+              nguoi_phu_trach: params.nguoi_phu_trach
             }
           }),
           redirect: 'follow'

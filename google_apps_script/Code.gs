@@ -112,7 +112,10 @@ function doPost(e) {
     } else if (action === 'uploadImage') {
       response = handleUploadImageToDrive(postData.data);
     } else if (action === 'uploadBtsImage') {
-      response = handleUploadImageToDrive(Object.assign({}, postData.data, { folderName: BTS_DRIVE_FOLDER_NAME }));
+      var btsData = postData.data || {};
+      response = handleUploadImageToDrive(Object.assign({}, btsData, {
+        folderPath: [BTS_DRIVE_FOLDER_NAME, btsData.to_ha_tang || 'Chưa phân tổ', btsData.nguoi_phu_trach || 'Chưa phân công']
+      }));
     } else if (action === 'saveBtsInspection') {
       response = handleSaveBtsInspection(postData.data);
     } else if (action === 'updateRecommendationStatus') {
@@ -201,6 +204,26 @@ function getOrCreateFolderByName(folderName) {
 }
 
 /**
+ * Lấy hoặc tạo chuỗi thư mục lồng nhau, bắt đầu từ gốc My Drive.
+ * VD: ['anhkiemdinhBTS', 'Tổ Hạ tầng Việt Trì', 'Nguyễn Văn A']
+ * => G:\My Drive\anhkiemdinhBTS\Tổ Hạ tầng Việt Trì\Nguyễn Văn A
+ */
+function getOrCreateNestedFolder(pathParts) {
+  var current = null;
+  pathParts.forEach(function(rawName) {
+    var name = String(rawName || '').trim() || 'Khac';
+    if (!current) {
+      var rootFolders = DriveApp.getFoldersByName(name);
+      current = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder(name);
+    } else {
+      var childFolders = current.getFoldersByName(name);
+      current = childFolders.hasNext() ? childFolders.next() : current.createFolder(name);
+    }
+  });
+  return current;
+}
+
+/**
  * Upload ảnh Base64 lên Google Drive, phân quyền công khai và trả về link LH3
  */
 function handleUploadImageToDrive(data) {
@@ -217,7 +240,14 @@ function handleUploadImageToDrive(data) {
     var decoded = Utilities.base64Decode(cleanBase64);
     var blob = Utilities.newBlob(decoded, mimeType, fileName);
 
-    var folder = data.folderName ? getOrCreateFolderByName(data.folderName) : getOrCreatePhotoFolder();
+    var folder;
+    if (Array.isArray(data.folderPath) && data.folderPath.length > 0) {
+      folder = getOrCreateNestedFolder(data.folderPath);
+    } else if (data.folderName) {
+      folder = getOrCreateFolderByName(data.folderName);
+    } else {
+      folder = getOrCreatePhotoFolder();
+    }
     var file = folder.createFile(blob);
 
     // Cấp quyền công khai "Anyone with link can view" để link LH3 tải tức thì không bị lỗi

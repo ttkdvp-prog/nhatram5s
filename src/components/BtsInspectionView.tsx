@@ -83,6 +83,9 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
 
     setUploadingStationId(station.id_nha_tram);
     try {
+      const sanitize = (s: string) => s.replace(/[\\/:*?"<>|]/g, '').trim();
+      const namePrefix = `${sanitize(station.to_ha_tang || '')}_${sanitize(station.nguoi_phu_trach || '')}`.replace(/\s+/g, '');
+
       const uploadFiles: BtsUploadFile[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
@@ -92,8 +95,8 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
           dataUrl,
           mimeType: isPdf ? 'application/pdf' : 'image/jpeg',
           fileName: isPdf
-            ? (file.name || `BTS_NiemYet_${station.ma_nha_tram}_${Date.now()}_${i + 1}.pdf`)
-            : `BTS_NiemYet_${station.ma_nha_tram}_${Date.now()}_${i + 1}.jpg`,
+            ? `${namePrefix}_${sanitize(file.name || `${station.ma_nha_tram}_${Date.now()}_${i + 1}.pdf`)}`
+            : `${namePrefix}_${station.ma_nha_tram}_${Date.now()}_${i + 1}.jpg`,
           isPdf
         });
       }
