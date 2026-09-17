@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar, ActiveTab } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { DashboardView } from './DashboardView';
@@ -26,6 +26,12 @@ export const Layout: React.FC = () => {
   const [btsInspections, setBtsInspections] = useState<BtsInspection[]>([]);
   const [selectedRecordForForm, setSelectedRecordForForm] = useState<SurveyRecord | null>(null);
 
+  // Nhớ các trạm BTS vừa được sửa tại chỗ (optimistic) để vòng lặp đồng bộ 3s không ghi đè
+  // ngược lại bằng dữ liệu server cũ hơn trước khi backend kịp lưu xong - tránh hiện tượng
+  // "nhấp nháy" khiến người dùng tưởng thao tác bị chậm/chưa ăn.
+  const recentBtsUpdatesRef = useRef<Map<string, number>>(new Map());
+  const RECENT_BTS_UPDATE_TTL_MS = 6000;
+
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
     const data = await fetchDashboardData();
@@ -34,12 +40,39 @@ export const Layout: React.FC = () => {
     setStations(data.stations);
     setRecords(data.records);
     setRecommendations(data.recommendations);
-    setBtsInspections(data.btsInspections || []);
     setIsLive(data.isLive);
+
+    setBtsInspections(prevLocal => {
+      const serverList = data.btsInspections || [];
+      const now = Date.now();
+      const recentMap = recentBtsUpdatesRef.current;
+      // Dọn các mốc thời gian đã quá hạn
+      recentMap.forEach((ts, id) => {
+        if (now - ts > RECENT_BTS_UPDATE_TTL_MS) recentMap.delete(id);
+      });
+      if (recentMap.size === 0) return serverList;
+
+      const merged = serverList.map(serverRow => {
+        if (recentMap.has(serverRow.id_nha_tram)) {
+          const localRow = prevLocal.find(b => b.id_nha_tram === serverRow.id_nha_tram);
+          if (localRow) return localRow;
+        }
+        return serverRow;
+      });
+      // Giữ lại các trạm mới tạo cục bộ mà server chưa kịp trả về
+      prevLocal.forEach(localRow => {
+        if (recentMap.has(localRow.id_nha_tram) && !merged.some(m => m.id_nha_tram === localRow.id_nha_tram)) {
+          merged.push(localRow);
+        }
+      });
+      return merged;
+    });
+
     if (!silent) setLoading(false);
   };
 
   const handleBtsInspectionUpdated = (updated: BtsInspection) => {
+    recentBtsUpdatesRef.current.set(updated.id_nha_tram, Date.now());
     setBtsInspections(prev => {
       const exists = prev.some(b => b.id_nha_tram === updated.id_nha_tram);
       return exists ? prev.map(b => (b.id_nha_tram === updated.id_nha_tram ? updated : b)) : [...prev, updated];
