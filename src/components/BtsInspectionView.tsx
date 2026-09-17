@@ -200,8 +200,7 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
           <span>Công bố kiểm định BTS</span>
         </h2>
         <p className="text-sm text-slate-500 mt-1">
-          Chọn Tổ Hạ tầng → nhân viên quản lý → chụp hoặc tải ảnh/file PDF giấy niêm yết kiểm định đã dán tại từng trạm BTS.
-          File được lưu trên Google Drive và hiển thị công khai cho mọi người xem.
+          Chọn Tổ Hạ tầng → nhân viên quản lý → chụp hoặc tải ảnh/file PDF giấy niêm yết kiểm định đã dán tại từng trạm BTS
         </p>
       </div>
 
