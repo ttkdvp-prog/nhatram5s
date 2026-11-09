@@ -51,7 +51,7 @@ export const RemindersView: React.FC<Props> = ({ stations, btsInspections }) => 
 
   const load = useCallback(async () => {
     const jobs: Promise<void>[] = [
-      apiPost('getReminderHistory', { mine: true }).then(j => j.status === 'success' && setMine(j.data || []))
+      apiPost('getReminderHistory', { mine: true }).then(j => { if (j.status === "success") setMine(j.data || []); })
     ];
     if (isAdmin) {
       jobs.push(
@@ -61,7 +61,7 @@ export const RemindersView: React.FC<Props> = ({ stations, btsInspections }) => 
             setTriggerOn(j.data.triggerOn);
           }
         }),
-        apiPost('getReminderHistory').then(j => j.status === 'success' && setHistory(j.data || []))
+        apiPost('getReminderHistory').then(j => { if (j.status === "success") setHistory(j.data || []); })
       );
     }
     await Promise.all(jobs).catch(() => undefined);
