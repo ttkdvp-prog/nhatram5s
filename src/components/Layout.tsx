@@ -17,7 +17,7 @@ import { CertificateUploadView } from './CertificateUploadView';
 import { NewCertTrackingView } from './NewCertTrackingView';
 import { fetchDashboardData, saveSurveyForm } from '../services/api';
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary, BtsInspection } from '../types';
-import { Menu, ShieldAlert } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { Session } from '../services/auth';
 import { ChangePasswordModal } from './ChangePasswordModal';
 
@@ -164,14 +164,6 @@ export const Layout: React.FC<LayoutProps> = ({ session, onSessionChange, onLogo
             </span>
           </div>
         </header>
-
-        {session.weak && (
-          <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 max-w-7xl flex items-center space-x-2 p-3 rounded-xl bg-amber-50 text-amber-800 text-sm">
-            <ShieldAlert className="w-5 h-5 shrink-0" />
-            <span>Bạn đang dùng mật khẩu mặc định. </span>
-            <button className="font-bold underline" onClick={() => setShowChangePw(true)}>Đổi mật khẩu</button>
-          </div>
-        )}
 
         {/* Dynamic Route View Scope */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 max-w-7xl w-full mx-auto">
