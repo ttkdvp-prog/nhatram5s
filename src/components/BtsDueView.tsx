@@ -75,6 +75,25 @@ export const BtsDueView: React.FC<Props> = ({ stations, btsInspections }) => {
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], 'vi'));
   }, [filtered]);
 
+  // Chẩn đoán: phân bố ngày hết hạn hiệu lực của toàn bộ trạm theo năm, để đối chiếu với ước tính
+  const diag = useMemo(() => {
+    const byYear = new Map<string, number>();
+    let hasCertNoDate = 0;
+    stations.forEach(s => {
+      const e = getEffectiveExpiry(s);
+      if (!e) {
+        if (s.GCN_kiem_dinh || s.GCN_cong_bo) hasCertNoDate++;
+        return;
+      }
+      const key = e.getFullYear() < 2026 ? 'Trước 2026' : String(e.getFullYear());
+      byYear.set(key, (byYear.get(key) || 0) + 1);
+    });
+    const years = Array.from(byYear.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    const manualExpired = btsInspections.filter(b => b.han_kiem_dinh === 'Hết hạn').length;
+    const manualNotPosted = btsInspections.filter(b => b.trang_thai !== 'Đã dán').length;
+    return { years, hasCertNoDate, manualExpired, manualNotPosted };
+  }, [stations, btsInspections]);
+
   const due = filtered.length;
   const done = filtered.filter(r => r.done).length;
   const remaining = due - done;
@@ -145,6 +164,20 @@ export const BtsDueView: React.FC<Props> = ({ stations, btsInspections }) => {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 text-sm">
+        <h3 className="font-bold text-slate-700 mb-2">Đối chiếu số liệu: phân bố trạm theo năm hết hạn</h3>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {diag.years.map(([y, n]) => (
+            <span key={y} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">{y}: {n}</span>
+          ))}
+        </div>
+        <ul className="text-xs text-slate-500 space-y-0.5">
+          <li>Trạm có số giấy nhưng không có ngày hết hạn: <b>{diag.hasCertNoDate}</b></li>
+          <li>Trạm được đánh dấu tay "Hết hạn" trong KIEM_DINH_BTS: <b>{diag.manualExpired}</b></li>
+          <li>Bản ghi KIEM_DINH_BTS chưa ở trạng thái Đã dán: <b>{diag.manualNotPosted}</b></li>
+        </ul>
       </div>
 
       <div className="flex items-start space-x-2 p-3 rounded-xl bg-sky-50 text-sky-800 text-xs">
