@@ -111,6 +111,14 @@ function doPost(e) {
       auditLog_(authUser, '', AUDIT_ACTION_LABELS[action], action === 'resetPassword' ? 'Tài khoản: ' + String((postData.data || {}).username || '') : '', '', pr.status === 'success' ? 'Thành công' : 'Lỗi');
       return createJsonResponse(pr);
     }
+    if (action === 'getEvidenceHashes') {
+      return createJsonResponse({ status: 'success', data: hashRead_() });
+    }
+    if (action === 'scanEvidenceHashes') {
+      var scanRes = hashScan_(authUser, 40);
+      if (scanRes.status === 'success') auditLog_(authUser, '', 'Quét minh chứng', 'Đã băm ' + scanRes.data.processed + ' tệp', '', 'Thành công');
+      return createJsonResponse(scanRes);
+    }
     if (action === 'getAuditLog') {
       return createJsonResponse({ status: 'success', data: auditRead_(authUser, 1000) });
     }

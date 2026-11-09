@@ -302,3 +302,79 @@ function auditRead_(user, limit) {
   }
   return out;
 }
+
+/** ---------- ĐỐI SOÁT MINH CHỨNG: băm MD5 tệp Drive (quét theo lô, có nhớ tiến độ) ---------- */
+
+var HASH_SHEET = 'HASH_MINH_CHUNG';
+var HASH_HEADERS = ['file_id', 'md5', 'kich_thuoc', 'trang_thai', 'thoi_diem'];
+var HASH_MAX_BYTES = 25 * 1024 * 1024;
+
+function hashSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(HASH_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(HASH_SHEET);
+    sh.appendRow(HASH_HEADERS);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function hashRead_() {
+  var sh = hashSheet_();
+  var last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, HASH_HEADERS.length).getValues().map(function (r) {
+    return { file_id: String(r[0]), md5: String(r[1]), kich_thuoc: r[2], trang_thai: String(r[3]) };
+  });
+}
+
+/** Danh sách file_id Drive đang được gắn làm minh chứng niêm yết. */
+function hashCollectFileIds_() {
+  var rows = getBtsInspectionsData();
+  var ids = {};
+  rows.forEach(function (r) {
+    (r.anh_niem_yet_list || []).forEach(function (u) {
+      var id = extractDriveFileIdFromUrl(String(u));
+      if (id) ids[id] = true;
+    });
+  });
+  return Object.keys(ids);
+}
+
+/** Quét tối đa maxFiles tệp chưa băm trong giới hạn thời gian. Chỉ admin được gọi. */
+function hashScan_(user, maxFiles) {
+  if (user.role !== 'admin') return { status: 'error', code: 'FORBIDDEN', message: 'Chỉ quản trị được quét minh chứng' };
+  var started = Date.now();
+  var done = {};
+  hashRead_().forEach(function (h) { done[h.file_id] = true; });
+  var todo = hashCollectFileIds_().filter(function (id) { return !done[id]; });
+  var batch = [];
+  var processed = 0;
+  var stamp = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy HH:mm:ss');
+
+  for (var i = 0; i < todo.length && processed < (maxFiles || 40); i++) {
+    if (Date.now() - started > 240000) break;
+    var id = todo[i];
+    try {
+      var file = DriveApp.getFileById(id);
+      if (file.isTrashed()) throw new Error('trashed');
+      var size = file.getSize();
+      if (size > HASH_MAX_BYTES) {
+        batch.push([id, '', size, 'BO_QUA_QUA_LON', stamp]);
+      } else {
+        var bytes = file.getBlob().getBytes();
+        if (!bytes || bytes.length === 0) throw new Error('empty');
+        batch.push([id, authHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, bytes)), size, 'OK', stamp]);
+      }
+    } catch (e) {
+      batch.push([id, '', '', 'LOI', stamp]);
+    }
+    processed++;
+  }
+  if (batch.length) {
+    var sh = hashSheet_();
+    sh.getRange(sh.getLastRow() + 1, 1, batch.length, HASH_HEADERS.length).setValues(batch);
+  }
+  return { status: 'success', data: { processed: processed, remaining: Math.max(0, todo.length - processed) } };
+}
