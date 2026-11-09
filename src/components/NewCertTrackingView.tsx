@@ -225,17 +225,13 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
 
       {msg && <div className="p-3 rounded-xl bg-sky-50 text-sky-800 text-sm">{msg}</div>}
 
-      {missingBaseline > 0 && (
-        <div className="p-3 rounded-xl bg-amber-50 text-amber-800 text-xs flex flex-wrap items-center gap-3">
-          <span>
-            <b>{missingBaseline}</b> trạm chưa có mốc ảnh (tải giấy trước khi có tính năng này), tạm tính là chưa dán.
-            {isAdmin ? ' Bấm "Chốt mốc" để tính từ bây giờ.' : ' Nhờ admin bấm "Chốt mốc".'}
-          </span>
-          {isAdmin && (
-            <button onClick={backfill} disabled={busy} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white font-bold disabled:opacity-50">
-              {busy ? 'Đang chốt...' : 'Chốt mốc'}
-            </button>
-          )}
+      {isAdmin && missingBaseline > 0 && (
+        <div>
+          <button onClick={backfill} disabled={busy} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-bold disabled:opacity-50">
+            {busy ? 'Đang chốt...' : `Chốt mốc (${missingBaseline})`}
+          </button>
+        </div>
+      )}
         </div>
       )}
 
