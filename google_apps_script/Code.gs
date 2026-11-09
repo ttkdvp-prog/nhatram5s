@@ -104,9 +104,21 @@ function doPost(e) {
       return createJsonResponse({ status: 'error', code: 'AUTH', message: 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại' });
     }
     if (action === 'logout') return createJsonResponse(authLogout_(postData.token));
-    if (action === 'keepPassword') return createJsonResponse(authKeepPassword_(authUser));
-    if (action === 'changePassword') return createJsonResponse(authChangePassword_(authUser, postData.data));
-    if (action === 'resetPassword') return createJsonResponse(authResetPassword_(authUser, postData.data));
+    if (action === 'keepPassword' || action === 'changePassword' || action === 'resetPassword') {
+      var pr = action === 'keepPassword' ? authKeepPassword_(authUser)
+        : action === 'changePassword' ? authChangePassword_(authUser, postData.data)
+        : authResetPassword_(authUser, postData.data);
+      auditLog_(authUser, '', AUDIT_ACTION_LABELS[action], action === 'resetPassword' ? 'Tài khoản: ' + String((postData.data || {}).username || '') : '', '', pr.status === 'success' ? 'Thành công' : 'Lỗi');
+      return createJsonResponse(pr);
+    }
+    if (action === 'getAuditLog') {
+      return createJsonResponse({ status: 'success', data: auditRead_(authUser, 1000) });
+    }
+    if (action === 'logEvent') {
+      var ev = postData.data || {};
+      auditLog_(authUser, String(ev.ma_tram || ''), String(ev.loai || 'Sự kiện').slice(0, 80), String(ev.chi_tiet || '').slice(0, 300), '', 'Thành công');
+      return createJsonResponse({ status: 'success' });
+    }
     if (action === 'getAll' || action === 'getStats') {
       return createJsonResponse({ status: 'success', data: handleReadAction(action, authUser) });
     }
@@ -128,6 +140,7 @@ function doPost(e) {
       return createJsonResponse({ status: 'error', code: 'FORBIDDEN', message: 'Chỉ quản trị mới thực hiện được' });
     }
 
+    var auditStart = Date.now();
     if (action === 'saveSurvey') {
       response = handleSaveSurvey(postData.data);
     } else if (action === 'uploadImage') {
@@ -155,6 +168,13 @@ function doPost(e) {
     }
 
     SpreadsheetApp.flush();
+    if (AUDIT_ACTION_LABELS[action]) {
+      var elapsed = Math.round((Date.now() - auditStart) / 100) / 10;
+      var clientSec = Number(postData.durationSec);
+      auditLog_(authUser, wd.ma_nha_tram || wd.id_nha_tram || '', AUDIT_ACTION_LABELS[action], '',
+        clientSec > 0 ? clientSec : elapsed,
+        response && response.status === 'success' ? 'Thành công' : 'Lỗi');
+    }
     return createJsonResponse(response);
   } catch (err) {
     return createJsonResponse({ status: 'error', message: err.toString() });

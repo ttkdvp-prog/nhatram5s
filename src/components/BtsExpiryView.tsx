@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { AlarmClock, Download } from 'lucide-react';
 import { Station } from '../types';
+import { logEvent } from '../services/auth';
 import { getEffectiveExpiry, formatVnDate } from '../utils/btsDates';
 
 interface Props {
@@ -104,6 +105,7 @@ export const BtsExpiryView: React.FC<Props> = ({ stations }) => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Sap_het_han');
     XLSX.writeFile(wb, `Tram_sap_het_han_${new Date().toISOString().split('T')[0]}.xlsx`);
+    logEvent('Xuất báo cáo', `Trạm sắp hết hạn (${list.length} dòng)`);
   };
 
   const levels: Level[] = ['Đã hết hạn', 'Trong 30 ngày', '31–60 ngày', '61–90 ngày'];

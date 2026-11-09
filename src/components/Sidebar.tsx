@@ -1,8 +1,8 @@
 import React from 'react';
 import { Session, ROLE_LABEL } from '../services/auth';
-import { AlarmClock, CalendarClock, LogOut, KeyRound, LayoutDashboard, ClipboardCheck, FolderKanban, Camera, BarChart3, Radio, ShieldCheck, PieChart } from 'lucide-react';
+import { ScrollText, AlarmClock, CalendarClock, LogOut, KeyRound, LayoutDashboard, ClipboardCheck, FolderKanban, Camera, BarChart3, Radio, ShieldCheck, PieChart } from 'lucide-react';
 
-export type ActiveTab = 'overview' | 'survey' | 'records' | 'photos' | 'reports' | 'btsInspection' | 'btsReport' | 'btsDue' | 'btsExpiry';
+export type ActiveTab = 'overview' | 'survey' | 'records' | 'photos' | 'reports' | 'btsInspection' | 'btsReport' | 'btsDue' | 'btsExpiry' | 'auditLog';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -27,6 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'btsInspection' as ActiveTab, label: 'Công bố kiểm định BTS', icon: ShieldCheck },
     { id: 'btsDue' as ActiveTab, label: 'Đến hạn dán lại 2026', icon: CalendarClock, isNew: true },
     { id: 'btsExpiry' as ActiveTab, label: 'Lịch hết hạn & cảnh báo', icon: AlarmClock, isNew: true },
+    { id: 'auditLog' as ActiveTab, label: 'Nhật ký thao tác', icon: ScrollText, isNew: true },
     { id: 'btsReport' as ActiveTab, label: 'Báo cáo kiểm định', icon: PieChart },
     { id: 'survey' as ActiveTab, label: 'Triển khai 5S', icon: ClipboardCheck },
     { id: 'records' as ActiveTab, label: 'Hồ sơ nhà trạm', icon: FolderKanban },

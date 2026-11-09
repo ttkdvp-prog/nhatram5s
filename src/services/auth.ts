@@ -112,3 +112,8 @@ export const resetPassword = async (username: string) => {
   if (json.status !== 'success') throw new Error(json.message || 'Không đặt lại được');
   return json.message as string;
 };
+
+/** Ghi 1 sự kiện (vd: xuất báo cáo) vào Nhật ký thao tác; không làm gián đoạn người dùng nếu lỗi. */
+export const logEvent = (loai: string, chi_tiet = '', ma_tram = '') => {
+  apiPost('logEvent', { loai, chi_tiet, ma_tram }).catch(() => undefined);
+};

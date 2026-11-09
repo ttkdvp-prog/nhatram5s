@@ -236,3 +236,69 @@ function authCanWriteStation_(user, idNhaTram) {
 function authSetup() {
   authGetSheet_();
 }
+
+/** ---------- NHẬT KÝ THAO TÁC (chỉ ghi thêm, không có hàm sửa/xóa) ---------- */
+
+var AUDIT_SHEET = 'NHAT_KY';
+var AUDIT_HEADERS = ['thoi_diem', 'tai_khoan', 'ten_nv', 'to_ha_tang', 'ma_tram', 'loai_thao_tac', 'chi_tiet', 'thoi_gian_xu_ly_giay', 'ket_qua'];
+
+var AUDIT_ACTION_LABELS = {
+  saveSurvey: 'Lưu phiếu khảo sát 5S',
+  uploadImage: 'Tải ảnh',
+  uploadBtsImage: 'Tải ảnh niêm yết',
+  saveBtsInspection: 'Cập nhật công bố kiểm định',
+  saveBtsInspectionBatch: 'Tải ảnh/PDF niêm yết',
+  removeBtsInspectionPhoto: 'Xóa ảnh niêm yết',
+  updateBtsExpiryStatus: 'Cập nhật hạn kiểm định',
+  updateRecommendationStatus: 'Cập nhật kiến nghị',
+  addStation: 'Thêm trạm',
+  changePassword: 'Đổi mật khẩu',
+  resetPassword: 'Đặt lại mật khẩu',
+  keepPassword: 'Giữ nguyên mật khẩu'
+};
+
+function auditSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(AUDIT_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(AUDIT_SHEET);
+    sh.appendRow(AUDIT_HEADERS);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+/** Ghi 1 dòng nhật ký. Lỗi ghi nhật ký không được làm hỏng thao tác chính. */
+function auditLog_(user, maTram, loai, chiTiet, giay, ketQua) {
+  try {
+    auditSheet_().appendRow([
+      Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy HH:mm:ss'),
+      user.username, user.ten, user.to,
+      maTram || '', loai, chiTiet || '',
+      giay === undefined || giay === null ? '' : giay,
+      ketQua || 'Thành công'
+    ]);
+  } catch (e) {
+    Logger.log('auditLog_ lỗi: ' + e);
+  }
+}
+
+/** Đọc nhật ký gần nhất, đã lọc theo phạm vi: admin tất cả, tổ trưởng cùng tổ, nhân viên chỉ của mình. */
+function auditRead_(user, limit) {
+  var sh = auditSheet_();
+  var last = sh.getLastRow();
+  if (last < 2) return [];
+  var n = Math.min(limit || 1000, last - 1);
+  var vals = sh.getRange(last - n + 1, 1, n, AUDIT_HEADERS.length).getValues();
+  var out = [];
+  for (var i = vals.length - 1; i >= 0; i--) {
+    var o = {};
+    AUDIT_HEADERS.forEach(function (h, idx) { o[h] = vals[i][idx]; });
+    if (user.role === 'admin' ||
+        (user.role === 'totruong' && String(o.to_ha_tang) === user.to) ||
+        String(o.tai_khoan) === user.username) {
+      out.push(o);
+    }
+  }
+  return out;
+}

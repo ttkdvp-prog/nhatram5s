@@ -10,6 +10,7 @@ import { BtsInspectionView } from './BtsInspectionView';
 import { BtsReportView } from './BtsReportView';
 import { BtsDueView } from './BtsDueView';
 import { BtsExpiryView } from './BtsExpiryView';
+import { AuditLogView } from './AuditLogView';
 import { fetchDashboardData, saveSurveyForm } from '../services/api';
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary, BtsInspection } from '../types';
 import { Menu, ShieldAlert } from 'lucide-react';
@@ -209,6 +210,8 @@ export const Layout: React.FC<LayoutProps> = ({ session, onSessionChange, onLogo
               onUpdated={handleBtsInspectionUpdated}
             />
           )}
+
+          {activeTab === 'auditLog' && <AuditLogView stations={stations} btsInspections={btsInspections} />}
 
           {activeTab === 'btsExpiry' && <BtsExpiryView stations={stations} />}
 
