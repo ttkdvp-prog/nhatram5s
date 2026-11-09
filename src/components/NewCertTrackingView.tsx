@@ -1,40 +1,43 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { ClipboardList, Download, CheckCircle2, AlertTriangle, ImageOff, FileText } from 'lucide-react';
+import { ClipboardList, Download, CheckCircle2, AlertTriangle, FileText, Camera, ImagePlus, Loader2 } from 'lucide-react';
 import { Station, BtsInspection } from '../types';
-import { logEvent } from '../services/auth';
-import { parseVnDate, getEffectiveExpiry, formatVnDate } from '../utils/btsDates';
+import { apiPost, logEvent } from '../services/auth';
+import { saveBtsInspectionPhotos, BtsUploadFile } from '../services/api';
+import { compressImageFile, readFileAsDataUrl } from '../utils/imageHelper';
+import { getEffectiveExpiry, formatVnDate } from '../utils/btsDates';
 
 interface Props {
   stations: Station[];
   btsInspections: BtsInspection[];
+  isAdmin: boolean;
+  onUpdated: (updated: BtsInspection) => void;
+  onReload: () => void;
 }
-
-const SINCE_YEAR = 2026;
 
 interface Row {
   s: Station;
   pdf: string;
-  issued: Date | null;
   expiry: Date | null;
+  hasBaseline: boolean;
+  newPhotos: string[];
   posted: boolean;
-  photos: number;
-  ngayDan: string;
-  source: string;
+  tai: string;
 }
 
-const issuedOf = (s: Station): Date | null => {
-  const a = s.GCN_kiem_dinh ? parseVnDate(s.ngay_cap_kiem_dinh) : null;
-  const b = s.GCN_cong_bo ? parseVnDate(s.ngay_cap_cong_bo) : null;
-  if (a && b) return a.getTime() >= b.getTime() ? a : b;
-  return a || b;
-};
+const isPdfUrl = (url: string) => /\.pdf(\?|$)/i.test(url) || url.includes('drive.google.com/file') || url.startsWith('data:application/pdf');
 
-export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections }) => {
-  const [mode, setMode] = useState<'all' | 'upload' | 'year'>('all');
+export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections, isAdmin, onUpdated, onReload }) => {
   const [org, setOrg] = useState('');
-  const [status, setStatus] = useState<'' | 'posted' | 'notPosted' | 'noPhoto'>('');
+  const [status, setStatus] = useState<'' | 'posted' | 'notPosted'>('');
   const [q, setQ] = useState('');
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const pendingRef = useRef<Station | null>(null);
 
   const inspMap = useMemo(() => {
     const m = new Map<string, BtsInspection>();
@@ -42,27 +45,32 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections 
     return m;
   }, [btsInspections]);
 
+  // Chỉ các trạm đã được tải giấy PDF lên app (có link_giay_pdf)
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
     stations.forEach(s => {
-      const pdf = String((s as any).link_giay_pdf || '').trim();
-      const issued = issuedOf(s);
-      const byYear = !!issued && issued.getFullYear() >= SINCE_YEAR;
-      if (!pdf && !byYear) return;
-      const insp = inspMap.get(s.id_nha_tram);
+      const a = s as any;
+      const pdf = String(a.link_giay_pdf || '').trim();
+      if (!pdf) return;
+      const baseRaw = a.so_anh_truoc;
+      const hasBaseline = baseRaw !== undefined && baseRaw !== null && String(baseRaw).trim() !== '';
+      const photos = inspMap.get(s.id_nha_tram)?.anh_niem_yet_list || [];
+      // Ảnh dán cho giấy mới = ảnh thêm sau mốc lúc tải giấy; ảnh/trạng thái cũ không tính
+      const newPhotos = hasBaseline ? photos.slice(Number(baseRaw) || 0) : [];
       out.push({
         s,
         pdf,
-        issued,
         expiry: getEffectiveExpiry(s),
-        posted: insp?.trang_thai === 'Đã dán',
-        photos: insp?.anh_niem_yet_list?.length || 0,
-        ngayDan: insp?.ngay_dan || '',
-        source: pdf && byYear ? 'Tải PDF + cấp từ 2026' : pdf ? 'Tải PDF' : `Cấp từ ${SINCE_YEAR}`
+        hasBaseline,
+        newPhotos,
+        posted: newPhotos.length > 0,
+        tai: String(a.ngay_tai_giay || '')
       });
     });
     return out;
   }, [stations, inspMap]);
+
+  const missingBaseline = rows.filter(r => !r.hasBaseline).length;
 
   const orgs = useMemo(
     () => Array.from(new Set(rows.map(r => r.s.to_ha_tang || 'Chưa phân tổ'))).sort((a, b) => a.localeCompare(b, 'vi')),
@@ -72,34 +80,90 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections 
   const filtered = useMemo(() => {
     const kw = q.trim().toLowerCase();
     return rows.filter(r => {
-      if (mode === 'upload' && !r.pdf) return false;
-      if (mode === 'year' && !(r.issued && r.issued.getFullYear() >= SINCE_YEAR)) return false;
       if (org && (r.s.to_ha_tang || 'Chưa phân tổ') !== org) return false;
       if (status === 'posted' && !r.posted) return false;
       if (status === 'notPosted' && r.posted) return false;
-      if (status === 'noPhoto' && r.photos > 0) return false;
       if (kw && !`${r.s.ma_nha_tram} ${r.s.ten_nha_tram} ${r.s.nguoi_phu_trach}`.toLowerCase().includes(kw)) return false;
       return true;
     });
-  }, [rows, mode, org, status, q]);
+  }, [rows, org, status, q]);
 
   const total = filtered.length;
   const posted = filtered.filter(r => r.posted).length;
-  const withPhoto = filtered.filter(r => r.photos > 0).length;
-  const postedNoPhoto = filtered.filter(r => r.posted && r.photos === 0).length;
 
   const byOrg = useMemo(() => {
-    const m = new Map<string, { total: number; posted: number; photo: number }>();
+    const m = new Map<string, { total: number; posted: number }>();
     filtered.forEach(r => {
       const k = r.s.to_ha_tang || 'Chưa phân tổ';
-      const o = m.get(k) || { total: 0, posted: 0, photo: 0 };
+      const o = m.get(k) || { total: 0, posted: 0 };
       o.total++;
       if (r.posted) o.posted++;
-      if (r.photos > 0) o.photo++;
       m.set(k, o);
     });
     return Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0], 'vi'));
   }, [filtered]);
+
+  const openPicker = (s: Station, camera: boolean) => {
+    pendingRef.current = s;
+    (camera ? cameraRef.current : fileRef.current)?.click();
+  };
+
+  const onFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const station = pendingRef.current;
+    const files = e.target.files;
+    if (!station || !files || files.length === 0) return;
+    pendingRef.current = null;
+    const list = Array.from(files);
+    e.target.value = '';
+    setUploadingId(station.id_nha_tram);
+    setMsg('');
+    try {
+      const sanitize = (x: string) => x.replace(/[\\/:*?"<>|]/g, '').trim();
+      const prefix = `${sanitize(station.to_ha_tang || '')}_${sanitize(station.nguoi_phu_trach || '')}`.replace(/\s+/g, '');
+      const photoFiles: BtsUploadFile[] = await Promise.all(
+        list.map(async (file, i) => {
+          const isPdf = file.type === 'application/pdf';
+          const dataUrl = isPdf ? await readFileAsDataUrl(file) : await compressImageFile(file, 1280, 1280, 0.72);
+          return {
+            dataUrl,
+            mimeType: isPdf ? 'application/pdf' : 'image/jpeg',
+            fileName: isPdf
+              ? `${prefix}_${sanitize(file.name || `${station.ma_nha_tram}_${Date.now()}_${i + 1}.pdf`)}`
+              : `${prefix}_${station.ma_nha_tram}_${Date.now()}_${i + 1}.jpg`,
+            isPdf
+          };
+        })
+      );
+      const updated = await saveBtsInspectionPhotos({
+        id_nha_tram: station.id_nha_tram,
+        ma_nha_tram: station.ma_nha_tram,
+        ten_nha_tram: station.ten_nha_tram,
+        to_ha_tang: station.to_ha_tang,
+        nguoi_phu_trach: station.nguoi_phu_trach,
+        ma_nv: station.ma_nv,
+        nguoi_tai: station.nguoi_phu_trach || 'Không xác định',
+        photoFiles
+      });
+      onUpdated(updated);
+      setMsg(`Đã gán ảnh cho ${station.ma_nha_tram}`);
+    } catch (err: any) {
+      setMsg(`Gán ảnh thất bại: ${err?.message || 'lỗi không xác định'}`);
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
+  const backfill = async () => {
+    if (!window.confirm(`Chốt mốc ảnh hiện tại cho ${missingBaseline} trạm đã tải giấy. Từ lúc này chỉ ảnh thêm mới mới tính là đã dán giấy mới. Tiếp tục?`)) return;
+    setBusy(true);
+    try {
+      const j = await apiPost('certBackfill', {});
+      setMsg(j.message || (j.status === 'success' ? 'Đã chốt mốc' : 'Chốt mốc thất bại'));
+      if (j.status === 'success') onReload();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const exportXlsx = () => {
     const data = filtered.map((r, i) => ({
@@ -109,13 +173,10 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections 
       'Tổ': r.s.to_ha_tang,
       'Người được giao': r.s.nguoi_phu_trach,
       'Mã NV': r.s.ma_nv || '',
-      'Ngày cấp giấy': r.issued ? formatVnDate(r.issued) : '',
-      'Hạn giấy': r.expiry ? formatVnDate(r.expiry) : '',
-      'Đã dán niêm yết': r.posted ? 'Đã dán' : 'Chưa dán',
-      'Ngày dán': r.ngayDan,
-      'Số ảnh niêm yết': r.photos,
-      'Link giấy PDF': r.pdf,
-      'Nguồn': r.source
+      'Hạn giấy mới': r.expiry ? formatVnDate(r.expiry) : '',
+      'Dán niêm yết': r.posted ? 'Đã dán' : 'Chưa dán',
+      'Số ảnh dán mới': r.newPhotos.length,
+      'Link giấy PDF': r.pdf
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -132,20 +193,21 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections 
     </div>
   );
 
-  const chip = (active: boolean) =>
-    `px-3 py-1.5 rounded-full text-xs font-bold border ${active ? 'bg-vnpt-600 text-white border-vnpt-600' : 'bg-white text-slate-600 border-slate-300'}`;
   const sel = 'px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white';
   const SHOW = 300;
 
   return (
     <div className="space-y-5">
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFiles} />
+      <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={onFiles} />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
             <ClipboardList className="w-6 h-6 text-vnpt-600" /> Theo dõi giấy kiểm định mới
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            Trạm đã có giấy mới: giao cho ai, thuộc Tổ nào, đã dán niêm yết chưa, đã có ảnh chưa.
+            Các trạm đã được tải giấy PDF lên app: giao cho ai, thuộc Tổ nào, đã dán niêm yết và đã gán ảnh chưa.
           </p>
         </div>
         <button onClick={exportXlsx} className="flex items-center gap-1 px-4 py-2 rounded-xl bg-vnpt-600 text-white text-sm font-bold">
@@ -153,23 +215,29 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections 
         </button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card label="Trạm có giấy mới" value={total} icon={FileText} tone="bg-sky-100 text-sky-700" />
-        <Card label="Đã dán niêm yết" value={posted} icon={CheckCircle2} tone="bg-emerald-100 text-emerald-700" />
-        <Card label="Chưa dán" value={total - posted} icon={AlertTriangle} tone="bg-red-100 text-red-700" />
-        <Card label="Đã có ảnh niêm yết" value={withPhoto} icon={ImageOff} tone="bg-amber-100 text-amber-700" />
-      </div>
+      {msg && <div className="p-3 rounded-xl bg-sky-50 text-sky-800 text-sm">{msg}</div>}
 
-      {postedNoPhoto > 0 && (
-        <div className="p-3 rounded-xl bg-amber-50 text-amber-800 text-xs">
-          Có <b>{postedNoPhoto}</b> trạm ghi "Đã dán" nhưng <b>chưa có ảnh</b> niêm yết.
+      {missingBaseline > 0 && (
+        <div className="p-3 rounded-xl bg-amber-50 text-amber-800 text-xs flex flex-wrap items-center gap-3">
+          <span>
+            <b>{missingBaseline}</b> trạm chưa có mốc ảnh (tải giấy trước khi có tính năng này), tạm tính là chưa dán.
+            {isAdmin ? ' Bấm "Chốt mốc" để tính từ bây giờ.' : ' Nhờ admin bấm "Chốt mốc".'}
+          </span>
+          {isAdmin && (
+            <button onClick={backfill} disabled={busy} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white font-bold disabled:opacity-50">
+              {busy ? 'Đang chốt...' : 'Chốt mốc'}
+            </button>
+          )}
         </div>
       )}
 
+      <div className="grid grid-cols-3 gap-3">
+        <Card label="Trạm đã tải giấy mới" value={total} icon={FileText} tone="bg-sky-100 text-sky-700" />
+        <Card label="Đã dán (có ảnh mới)" value={posted} icon={CheckCircle2} tone="bg-emerald-100 text-emerald-700" />
+        <Card label="Chưa dán" value={total - posted} icon={AlertTriangle} tone="bg-red-100 text-red-700" />
+      </div>
+
       <div className="flex flex-wrap gap-2 items-center">
-        <button className={chip(mode === 'all')} onClick={() => setMode('all')}>Tất cả</button>
-        <button className={chip(mode === 'upload')} onClick={() => setMode('upload')}>Tải PDF qua app</button>
-        <button className={chip(mode === 'year')} onClick={() => setMode('year')}>Cấp từ {SINCE_YEAR}</button>
         <select className={sel} value={org} onChange={e => setOrg(e.target.value)}>
           <option value="">Tất cả Tổ</option>
           {orgs.map(o => <option key={o} value={o}>{o}</option>)}
@@ -178,7 +246,6 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections 
           <option value="">Mọi trạng thái</option>
           <option value="posted">Đã dán</option>
           <option value="notPosted">Chưa dán</option>
-          <option value="noPhoto">Chưa có ảnh</option>
         </select>
         <input className={sel} placeholder="Tìm mã, tên trạm, người..." value={q} onChange={e => setQ(e.target.value)} />
       </div>
@@ -191,7 +258,6 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections 
               <th className="text-right p-3">Giấy mới</th>
               <th className="text-right p-3">Đã dán</th>
               <th className="text-right p-3">Chưa dán</th>
-              <th className="text-right p-3">Có ảnh</th>
             </tr>
           </thead>
           <tbody>
@@ -201,10 +267,9 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections 
                 <td className="p-3 text-right">{v.total}</td>
                 <td className="p-3 text-right text-emerald-700">{v.posted}</td>
                 <td className="p-3 text-right text-red-600">{v.total - v.posted}</td>
-                <td className="p-3 text-right">{v.photo}</td>
               </tr>
             ))}
-            {byOrg.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-slate-400">Chưa có trạm nào</td></tr>}
+            {byOrg.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-slate-400">Chưa có trạm nào tải giấy PDF</td></tr>}
           </tbody>
         </table>
       </div>
@@ -217,31 +282,57 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections 
               <th className="text-left p-3">Tên trạm</th>
               <th className="text-left p-3">Tổ</th>
               <th className="text-left p-3">Người được giao</th>
-              <th className="text-left p-3">Hạn giấy</th>
+              <th className="text-left p-3">Hạn giấy mới</th>
               <th className="text-left p-3">Niêm yết</th>
-              <th className="text-right p-3">Ảnh</th>
+              <th className="text-left p-3">Ảnh dán</th>
               <th className="text-left p-3">Giấy PDF</th>
+              <th className="text-left p-3">Gán ảnh</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.slice(0, SHOW).map(r => (
-              <tr key={r.s.id_nha_tram} className="border-t border-slate-100">
-                <td className="p-3 font-mono text-xs">{r.s.ma_nha_tram}</td>
-                <td className="p-3">{r.s.ten_nha_tram}</td>
-                <td className="p-3">{r.s.to_ha_tang}</td>
-                <td className="p-3">{r.s.nguoi_phu_trach || <span className="text-slate-400">Chưa giao</span>}</td>
-                <td className="p-3">{r.expiry ? formatVnDate(r.expiry) : ''}</td>
-                <td className="p-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.posted ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                    {r.posted ? 'Đã dán' : 'Chưa dán'}
-                  </span>
-                </td>
-                <td className={`p-3 text-right font-semibold ${r.photos ? 'text-emerald-700' : 'text-slate-400'}`}>{r.photos || 'Chưa có'}</td>
-                <td className="p-3">
-                  {r.pdf ? <a href={r.pdf} target="_blank" rel="noreferrer" className="text-vnpt-600 underline">Xem</a> : <span className="text-slate-400">-</span>}
-                </td>
-              </tr>
-            ))}
+            {filtered.slice(0, SHOW).map(r => {
+              const busyRow = uploadingId === r.s.id_nha_tram;
+              return (
+                <tr key={r.s.id_nha_tram} className="border-t border-slate-100">
+                  <td className="p-3 font-mono text-xs">{r.s.ma_nha_tram}</td>
+                  <td className="p-3">{r.s.ten_nha_tram}</td>
+                  <td className="p-3">{r.s.to_ha_tang}</td>
+                  <td className="p-3">{r.s.nguoi_phu_trach || <span className="text-slate-400">Chưa giao</span>}</td>
+                  <td className="p-3">{r.expiry ? formatVnDate(r.expiry) : ''}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.posted ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                      {r.posted ? 'Đã dán' : 'Chưa dán'}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    {r.newPhotos.length === 0 ? (
+                      <span className="text-slate-400">Chưa có</span>
+                    ) : (
+                      <span className="flex flex-wrap gap-1">
+                        {r.newPhotos.map((u, i) => (
+                          <a key={u} href={u} target="_blank" rel="noreferrer" className="text-vnpt-600 underline text-xs">
+                            {isPdfUrl(u) ? 'PDF' : 'Ảnh'} {i + 1}
+                          </a>
+                        ))}
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    <a href={r.pdf} target="_blank" rel="noreferrer" className="text-vnpt-600 underline">Xem</a>
+                  </td>
+                  <td className="p-3">
+                    {busyRow ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+                    ) : (
+                      <span className="flex gap-1">
+                        <button title="Chụp ảnh" onClick={() => openPicker(r.s, true)} className="p-1.5 rounded-lg bg-vnpt-600 text-white"><Camera className="w-4 h-4" /></button>
+                        <button title="Chọn ảnh từ máy" onClick={() => openPicker(r.s, false)} className="p-1.5 rounded-lg bg-slate-200 text-slate-700"><ImagePlus className="w-4 h-4" /></button>
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {filtered.length > SHOW && (
@@ -250,8 +341,8 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections 
       </div>
 
       <p className="text-xs text-slate-500">
-        "Giấy mới" gồm trạm có file PDF tải qua tab "Tải giấy kiểm định mới" hoặc có ngày cấp giấy từ {SINCE_YEAR}.
-        Trạng thái dán và ảnh lấy từ tab Công bố kiểm định BTS.
+        Chỉ hiển thị trạm đã được tải giấy PDF qua tab "Tải giấy kiểm định mới". Trạm chỉ tính "Đã dán" khi có ảnh được gán
+        <b> sau</b> lúc tải giấy mới; ảnh và trạng thái dán của giấy cũ không được tính.
       </p>
     </div>
   );

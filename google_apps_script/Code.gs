@@ -121,6 +121,11 @@ function doPost(e) {
       }
       return createJsonResponse(certRes);
     }
+    if (action === 'certBackfill') {
+      var cb = certBackfill_(authUser);
+      if (cb.status === 'success') auditLog_(authUser, '', 'Chốt mốc ảnh giấy mới', cb.message, '', 'Thành công');
+      return createJsonResponse(cb);
+    }
     if (action === 'getReminderRules') {
       return createJsonResponse({ status: 'success', data: { rules: remGetRules_(), triggerOn: remTriggerOn_() } });
     }

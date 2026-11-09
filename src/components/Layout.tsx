@@ -217,7 +217,7 @@ export const Layout: React.FC<LayoutProps> = ({ session, onSessionChange, onLogo
 
           {activeTab === 'certUpload' && <CertificateUploadView onSaved={() => loadData(true)} />}
 
-          {activeTab === 'certTracking' && <NewCertTrackingView stations={stations} btsInspections={btsInspections} />}
+          {activeTab === 'certTracking' && <NewCertTrackingView stations={stations} btsInspections={btsInspections} isAdmin={session.user.role === 'admin'} onUpdated={handleBtsInspectionUpdated} onReload={() => loadData(true)} />}
 
           {activeTab === 'reminders' && <RemindersView stations={stations} btsInspections={btsInspections} />}
 

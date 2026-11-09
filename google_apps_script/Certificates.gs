@@ -82,6 +82,42 @@ function certFindExisting_(folder, ma) {
   return out;
 }
 
+/** Số ảnh niêm yết hiện có của từng trạm (theo id_nha_tram) trong KIEM_DINH_BTS. */
+function certPhotoCount_() {
+  var out = {};
+  getBtsInspectionsData().forEach(function (b) {
+    var l = b.anh_niem_yet_list;
+    var n = Array.isArray(l) ? l.length : (l ? String(l).split(/[,\n|]+/).filter(String).length : 0);
+    out[String(b.id_nha_tram)] = n;
+  });
+  return out;
+}
+
+/** Admin: chốt mốc ảnh cho các trạm đã có link_giay_pdf nhưng chưa có mốc (dữ liệu nhập trước đây). */
+function certBackfill_(user) {
+  if (user.role !== 'admin') return { status: 'error', code: 'FORBIDDEN', message: 'Chỉ admin được chốt mốc' };
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.STATIONS);
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0].map(String);
+  ['link_giay_pdf', 'so_anh_truoc', 'ngay_tai_giay'].forEach(function (h) {
+    if (headers.indexOf(h) === -1) { sheet.getRange(1, headers.length + 1).setValue(h); headers.push(h); }
+  });
+  var cLink = headers.indexOf('link_giay_pdf'), cBase = headers.indexOf('so_anh_truoc'), cAt = headers.indexOf('ngay_tai_giay'), cId = headers.indexOf('id_nha_tram');
+  var counts = certPhotoCount_();
+  var n = 0;
+  for (var i = 1; i < values.length; i++) {
+    var link = String(values[i][cLink] || '').trim();
+    var base = cBase < values[i].length ? values[i][cBase] : '';
+    if (link && (base === '' || base === null)) {
+      sheet.getRange(i + 1, cBase + 1).setValue(counts[String(values[i][cId])] || 0);
+      sheet.getRange(i + 1, cAt + 1).setValue(new Date());
+      n++;
+    }
+  }
+  SpreadsheetApp.flush();
+  return { status: 'success', message: 'Đã chốt mốc ảnh cho ' + n + ' trạm', data: { updated: n } };
+}
+
 function certUpload_(user, data) {
   var lk = certLookup_(user, data);
   if (lk.status !== 'success') return lk;
@@ -131,11 +167,16 @@ function certUpload_(user, data) {
   set['ngay_het_han_' + suffix] = end;
 
   var headers = st.headers.slice();
-  if (headers.indexOf('link_giay_pdf') === -1) {
-    st.sheet.getRange(1, headers.length + 1).setValue('link_giay_pdf');
-    headers.push('link_giay_pdf');
-  }
+  ['link_giay_pdf', 'so_anh_truoc', 'ngay_tai_giay'].forEach(function (h) {
+    if (headers.indexOf(h) === -1) {
+      st.sheet.getRange(1, headers.length + 1).setValue(h);
+      headers.push(h);
+    }
+  });
   set['link_giay_pdf'] = url;
+  // Mốc ảnh niêm yết lúc tải giấy mới: chỉ ảnh thêm SAU mốc này mới tính là đã dán giấy mới
+  set['so_anh_truoc'] = certPhotoCount_()[String(info.id_nha_tram)] || 0;
+  set['ngay_tai_giay'] = new Date();
   Object.keys(set).forEach(function (h) {
     var c = headers.indexOf(h);
     if (c !== -1) st.sheet.getRange(st.row, c + 1).setValue(set[h]);

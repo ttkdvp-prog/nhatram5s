@@ -23,6 +23,9 @@ export interface Station {
   ngay_cap_cong_bo?: string;
   ngay_het_han_cong_bo?: string;
   dien_giai?: string;
+  link_giay_pdf?: string;
+  so_anh_truoc?: string | number;
+  ngay_tai_giay?: string;
 }
 
 export interface SurveyRecord {
