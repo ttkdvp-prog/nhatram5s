@@ -232,8 +232,6 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
           </button>
         </div>
       )}
-        </div>
-      )}
 
       <div className="grid grid-cols-3 gap-3">
         <Card label="Trạm đã tải giấy mới" value={total} icon={FileText} tone="bg-sky-100 text-sky-700" />
