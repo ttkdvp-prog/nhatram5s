@@ -1,34 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { CalendarClock, CheckCircle2, AlertTriangle, ListChecks, Building2, Info } from 'lucide-react';
 import { Station, BtsInspection } from '../types';
+import { getEffectiveExpiry } from '../utils/btsDates';
 
 interface Props {
   stations: Station[];
   btsInspections: BtsInspection[];
 }
 
-// Backend trả ngày dạng dd/MM/yyyy
-const parseVnDate = (s?: string): Date | null => {
-  if (!s) return null;
-  const [day, month, year] = String(s).trim().split(/[\/\-]/).map(Number);
-  if (!day || !month || !year) return null;
-  const d = new Date(year, month - 1, day);
-  return isNaN(d.getTime()) ? null : d;
-};
-
 const YEAR = 2026;
-
-/**
- * Ngày hết hạn hiệu lực của trạm = ngày hết hạn XA HƠN giữa giấy kiểm định và bản công bố
- * (cùng quy tắc "ưu tiên giấy còn hạn lâu hơn" đang dùng ở tab Công bố kiểm định BTS).
- * Trả về null nếu trạm không có ngày hết hạn nào.
- */
-const getEffectiveExpiry = (s: Station): Date | null => {
-  const a = s.GCN_kiem_dinh ? parseVnDate(s.ngay_het_han_kiem_dinh) : null;
-  const b = s.GCN_cong_bo ? parseVnDate(s.ngay_het_han_cong_bo) : null;
-  if (a && b) return a.getTime() >= b.getTime() ? a : b;
-  return a || b;
-};
 
 interface Row {
   station: Station;
