@@ -5,7 +5,7 @@ import { Station, BtsInspection } from '../types';
 import { apiPost, logEvent } from '../services/auth';
 import { saveBtsInspectionPhotos, BtsUploadFile } from '../services/api';
 import { compressImageFile, readFileAsDataUrl } from '../utils/imageHelper';
-import { getEffectiveExpiry, formatVnDate } from '../utils/btsDates';
+import { parseVnDate, formatVnDate } from '../utils/btsDates';
 
 interface Props {
   stations: Station[];
@@ -18,12 +18,20 @@ interface Props {
 interface Row {
   s: Station;
   pdf: string;
-  expiry: Date | null;
+  issued: Date | null;
   hasBaseline: boolean;
   newPhotos: string[];
   posted: boolean;
   tai: string;
 }
+
+// Ngày cấp / ký văn bản: lấy ngày muộn hơn giữa giấy kiểm định và bản công bố
+const issuedOf = (s: Station): Date | null => {
+  const a = s.GCN_kiem_dinh ? parseVnDate(s.ngay_cap_kiem_dinh) : null;
+  const b = s.GCN_cong_bo ? parseVnDate(s.ngay_cap_cong_bo) : null;
+  if (a && b) return a.getTime() >= b.getTime() ? a : b;
+  return a || b;
+};
 
 const isPdfUrl = (url: string) => /\.pdf(\?|$)/i.test(url) || url.includes('drive.google.com/file') || url.startsWith('data:application/pdf');
 
@@ -60,7 +68,7 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
       out.push({
         s,
         pdf,
-        expiry: getEffectiveExpiry(s),
+        issued: issuedOf(s),
         hasBaseline,
         newPhotos,
         posted: newPhotos.length > 0,
@@ -173,7 +181,7 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
       'Tổ': r.s.to_ha_tang,
       'Người được giao': r.s.nguoi_phu_trach,
       'Mã NV': r.s.ma_nv || '',
-      'Hạn giấy mới': r.expiry ? formatVnDate(r.expiry) : '',
+      'Ngày cấp/ký': r.issued ? formatVnDate(r.issued) : '',
       'Dán niêm yết': r.posted ? 'Đã dán' : 'Chưa dán',
       'Số ảnh dán mới': r.newPhotos.length,
       'Link giấy PDF': r.pdf
@@ -282,7 +290,7 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
               <th className="text-left p-3">Tên trạm</th>
               <th className="text-left p-3">Tổ</th>
               <th className="text-left p-3">Người được giao</th>
-              <th className="text-left p-3">Hạn giấy mới</th>
+              <th className="text-left p-3">Ngày cấp/ký</th>
               <th className="text-left p-3">Niêm yết</th>
               <th className="text-left p-3">Ảnh dán</th>
               <th className="text-left p-3">Giấy PDF</th>
@@ -298,7 +306,7 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
                   <td className="p-3">{r.s.ten_nha_tram}</td>
                   <td className="p-3">{r.s.to_ha_tang}</td>
                   <td className="p-3">{r.s.nguoi_phu_trach || <span className="text-slate-400">Chưa giao</span>}</td>
-                  <td className="p-3">{r.expiry ? formatVnDate(r.expiry) : ''}</td>
+                  <td className="p-3">{r.issued ? formatVnDate(r.issued) : ''}</td>
                   <td className="p-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.posted ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                       {r.posted ? 'Đã dán' : 'Chưa dán'}
