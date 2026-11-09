@@ -1,8 +1,8 @@
 import React from 'react';
 import { Session, ROLE_LABEL } from '../services/auth';
-import { LogOut, KeyRound, LayoutDashboard, ClipboardCheck, FolderKanban, Camera, BarChart3, Radio, ShieldCheck, PieChart } from 'lucide-react';
+import { CalendarClock, LogOut, KeyRound, LayoutDashboard, ClipboardCheck, FolderKanban, Camera, BarChart3, Radio, ShieldCheck, PieChart } from 'lucide-react';
 
-export type ActiveTab = 'overview' | 'survey' | 'records' | 'photos' | 'reports' | 'btsInspection' | 'btsReport';
+export type ActiveTab = 'overview' | 'survey' | 'records' | 'photos' | 'reports' | 'btsInspection' | 'btsReport' | 'btsDue';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -25,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const menuItems = [
     { id: 'btsInspection' as ActiveTab, label: 'Công bố kiểm định BTS', icon: ShieldCheck },
+    { id: 'btsDue' as ActiveTab, label: 'Đến hạn dán lại 2026', icon: CalendarClock, isNew: true },
     { id: 'btsReport' as ActiveTab, label: 'Báo cáo kiểm định', icon: PieChart },
     { id: 'survey' as ActiveTab, label: 'Triển khai 5S', icon: ClipboardCheck },
     { id: 'records' as ActiveTab, label: 'Hồ sơ nhà trạm', icon: FolderKanban },
@@ -80,7 +81,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }`}
               >
                 <Icon className={`w-5 h-5 ${isActive ? 'text-vnpt-600' : 'text-sky-200'}`} />
-                <span>{item.label}</span>
+                <span className="flex-1 text-left">{item.label}</span>
+                {(item as any).isNew && <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-400 text-slate-900">MỚI</span>}
               </button>
             );
           })}

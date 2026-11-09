@@ -137,6 +137,10 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations, btsInspe
         <p className="text-sm text-slate-500 mt-1">
           Thống kê tiến độ dán niêm yết kiểm định theo từng Tổ Hạ tầng, từng nhân viên và xếp hạng người gắn file nhiều nhất.
         </p>
+        <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 mt-3">
+          Lưu ý: "Phải thực hiện" ở đây = tổng số trạm trừ số trạm đã dán, không phải chỉ tiêu dán lại trong năm. Chỉ tiêu
+          dán lại năm 2026 xem ở mục "Đến hạn dán lại 2026".
+        </p>
       </div>
 
       {/* Tổng quan toàn Trung tâm */}

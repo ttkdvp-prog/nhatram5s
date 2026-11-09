@@ -8,6 +8,7 @@ import { PhotoProgressView } from './PhotoProgressView';
 import { ReportsView } from './ReportsView';
 import { BtsInspectionView } from './BtsInspectionView';
 import { BtsReportView } from './BtsReportView';
+import { BtsDueView } from './BtsDueView';
 import { fetchDashboardData, saveSurveyForm } from '../services/api';
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary, BtsInspection } from '../types';
 import { Menu, ShieldAlert } from 'lucide-react';
@@ -206,6 +207,10 @@ export const Layout: React.FC<LayoutProps> = ({ session, onSessionChange, onLogo
               btsInspections={btsInspections}
               onUpdated={handleBtsInspectionUpdated}
             />
+          )}
+
+          {activeTab === 'btsDue' && (
+            <BtsDueView stations={stations} btsInspections={btsInspections} />
           )}
 
           {activeTab === 'btsReport' && (
