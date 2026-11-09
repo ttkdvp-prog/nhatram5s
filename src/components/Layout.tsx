@@ -13,6 +13,7 @@ import { BtsExpiryView } from './BtsExpiryView';
 import { AuditLogView } from './AuditLogView';
 import { EvidenceCheckView } from './EvidenceCheckView';
 import { RemindersView } from './RemindersView';
+import { CertificateUploadView } from './CertificateUploadView';
 import { fetchDashboardData, saveSurveyForm } from '../services/api';
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary, BtsInspection } from '../types';
 import { Menu, ShieldAlert } from 'lucide-react';
@@ -212,6 +213,8 @@ export const Layout: React.FC<LayoutProps> = ({ session, onSessionChange, onLogo
               onUpdated={handleBtsInspectionUpdated}
             />
           )}
+
+          {activeTab === 'certUpload' && <CertificateUploadView onSaved={() => loadData(true)} />}
 
           {activeTab === 'reminders' && <RemindersView stations={stations} btsInspections={btsInspections} />}
 

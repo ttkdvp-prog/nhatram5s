@@ -111,6 +111,16 @@ function doPost(e) {
       auditLog_(authUser, '', AUDIT_ACTION_LABELS[action], action === 'resetPassword' ? 'Tài khoản: ' + String((postData.data || {}).username || '') : '', '', pr.status === 'success' ? 'Thành công' : 'Lỗi');
       return createJsonResponse(pr);
     }
+    if (action === 'lookupStation') return createJsonResponse(certLookup_(authUser, postData.data));
+    if (action === 'uploadCertificate') {
+      var certStart = Date.now();
+      var certRes = certUpload_(authUser, postData.data || {});
+      if (certRes.status !== 'exists') {
+        auditLog_(authUser, String((postData.data || {}).ma_nha_tram || '').toUpperCase(), 'Tải giấy kiểm định mới', certRes.status === 'success' ? certRes.data.fileName : certRes.message,
+          Math.round((Date.now() - certStart) / 100) / 10, certRes.status === 'success' ? 'Thành công' : 'Lỗi');
+      }
+      return createJsonResponse(certRes);
+    }
     if (action === 'getReminderRules') {
       return createJsonResponse({ status: 'success', data: { rules: remGetRules_(), triggerOn: remTriggerOn_() } });
     }
