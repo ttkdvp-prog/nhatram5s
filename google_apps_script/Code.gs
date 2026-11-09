@@ -54,46 +54,30 @@ function doGet(e) {
     }
   }
 
-  try {
-    setupSheetsIfMissing();
-    
-    var result = {};
-    if (action === 'getStats') {
-      result = getStatsData();
-    } else if (action === 'getStations') {
-      result = getSheetData(SHEET_NAMES.STATIONS);
-    } else if (action === 'getRecords') {
-      result = getSheetData(SHEET_NAMES.RECORDS);
-    } else if (action === 'getRecommendations') {
-      result = getSheetData(SHEET_NAMES.RECOMMENDATIONS);
-    } else if (action === 'getPhotos') {
-      result = getSheetData(SHEET_NAMES.PHOTOS);
-    } else if (action === 'getBtsInspections') {
-      result = getBtsInspectionsData();
-    } else if (action === 'getAll') {
-      // Đọc mỗi sheet đúng 1 lần rồi dùng lại cho stats, thay vì đọc lại 2 lần (STATIONS/RECORDS)
-      // như trước đây - sheet DM_NHA_TRAM có ~1900 dòng nên đọc trùng gây chậm rõ rệt.
-      // Sheet ANH_MINH_CHUNG (photos) bị bỏ khỏi getAll vì frontend không dùng đến.
-      var allStations = getSheetData(SHEET_NAMES.STATIONS);
-      var allRecords = getSheetData(SHEET_NAMES.RECORDS);
-      result = {
-        stations: allStations,
-        records: allRecords,
-        recommendations: getSheetData(SHEET_NAMES.RECOMMENDATIONS),
-        btsInspections: getBtsInspectionsData(),
-        stats: getStatsData(allStations, allRecords)
-      };
-    } else if (action === 'initData') {
-      initSampleData();
-      result = { message: 'Đã khởi tạo thành công toàn bộ dữ liệu mẫu vào Google Sheets!' };
-    } else {
-      result = { status: 'error', message: 'Action không hợp lệ: ' + action };
-    }
+  return createJsonResponse({ status: 'error', message: 'Dữ liệu chỉ được cấp qua POST sau khi đăng nhập' });
+}
 
-    return createJsonResponse({ status: 'success', data: result });
-  } catch (err) {
-    return createJsonResponse({ status: 'error', message: err.toString() });
+/**
+ * Các action đọc dữ liệu (chỉ gọi từ doPost, đã xác thực) - lọc theo phạm vi người dùng.
+ */
+function handleReadAction(action, user) {
+  if (action === 'getStats') {
+    return getStatsData();
   }
+  if (action === 'getAll') {
+    var allStations = authScopeRows_(user, getSheetData(SHEET_NAMES.STATIONS));
+    var idSet = {};
+    allStations.forEach(function (s) { idSet[String(s.id_nha_tram || s.ma_nha_tram)] = true; idSet[String(s.ma_nha_tram)] = true; });
+    var allRecords = authScopeByStationIds_(user, getSheetData(SHEET_NAMES.RECORDS), idSet);
+    return {
+      stations: allStations,
+      records: allRecords,
+      recommendations: authScopeByStationIds_(user, getSheetData(SHEET_NAMES.RECOMMENDATIONS), idSet),
+      btsInspections: authScopeByStationIds_(user, getBtsInspectionsData(), idSet),
+      stats: getStatsData(allStations, allRecords)
+    };
+  }
+  return null;
 }
 
 /**
@@ -110,6 +94,39 @@ function doPost(e) {
     
     var action = postData.action;
     var response = { status: 'error', message: 'Action không xác định' };
+
+    // --- Xác thực ---
+    if (action === 'login') {
+      return createJsonResponse(authLogin_(postData.data));
+    }
+    var authUser = authGetUser_(postData.token);
+    if (!authUser) {
+      return createJsonResponse({ status: 'error', code: 'AUTH', message: 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại' });
+    }
+    if (action === 'logout') return createJsonResponse(authLogout_(postData.token));
+    if (action === 'keepPassword') return createJsonResponse(authKeepPassword_(authUser));
+    if (action === 'changePassword') return createJsonResponse(authChangePassword_(authUser, postData.data));
+    if (action === 'resetPassword') return createJsonResponse(authResetPassword_(authUser, postData.data));
+    if (action === 'getAll' || action === 'getStats') {
+      return createJsonResponse({ status: 'success', data: handleReadAction(action, authUser) });
+    }
+
+    // --- Phân quyền ghi ---
+    var wd = postData.data || {};
+    var stationScoped = ['saveSurvey', 'saveBtsInspection', 'saveBtsInspectionBatch', 'removeBtsInspectionPhoto', 'updateBtsExpiryStatus', 'uploadBtsImage', 'uploadImage'];
+    if (stationScoped.indexOf(action) !== -1) {
+      var sid = wd.id_nha_tram || wd.ma_nha_tram || wd.stationCode;
+      if (authUser.role !== 'admin' && !sid) {
+        return createJsonResponse({ status: 'error', code: 'FORBIDDEN', message: 'Thiếu mã trạm' });
+      }
+      if (sid && !authCanWriteStation_(authUser, sid)) {
+        return createJsonResponse({ status: 'error', code: 'FORBIDDEN', message: 'Bạn không được phân quyền cập nhật trạm này' });
+      }
+      if (postData.data) postData.data.nguoi_tai = authUser.ten;
+    }
+    if ((action === 'addStation' || action === 'initData') && authUser.role !== 'admin') {
+      return createJsonResponse({ status: 'error', code: 'FORBIDDEN', message: 'Chỉ quản trị mới thực hiện được' });
+    }
 
     if (action === 'saveSurvey') {
       response = handleSaveSurvey(postData.data);

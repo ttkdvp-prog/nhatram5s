@@ -32,9 +32,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     setStatus('testing');
     setMessage('Đang kết nối thử nghiệm tới Google Apps Script...');
     try {
-      const res = await fetch(`${url.trim()}?action=getStats`);
+      const res = await fetch(url.trim(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'ping' })
+      });
       const data = await res.json();
-      if (data.status === 'success') {
+      // Backend sống sẽ trả JSON (kể cả báo cần đăng nhập)
+      if (data.status === 'success' || data.code === 'AUTH') {
         setStatus('success');
         setMessage('Kết nối Google Sheets & Google Drive (Code.gs) thành công!');
       } else {

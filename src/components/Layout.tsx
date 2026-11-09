@@ -10,9 +10,18 @@ import { BtsInspectionView } from './BtsInspectionView';
 import { BtsReportView } from './BtsReportView';
 import { fetchDashboardData, saveSurveyForm } from '../services/api';
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary, BtsInspection } from '../types';
-import { Menu } from 'lucide-react';
+import { Menu, ShieldAlert } from 'lucide-react';
+import { Session } from '../services/auth';
+import { ChangePasswordModal } from './ChangePasswordModal';
 
-export const Layout: React.FC = () => {
+interface LayoutProps {
+  session: Session;
+  onSessionChange: (s: Session) => void;
+  onLogout: () => void;
+}
+
+export const Layout: React.FC<LayoutProps> = ({ session, onSessionChange, onLogout }) => {
+  const [showChangePw, setShowChangePw] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [isOpenMobile, setIsOpenMobile] = useState(false);
 
@@ -122,6 +131,9 @@ export const Layout: React.FC = () => {
         setActiveTab={setActiveTab}
         isOpenMobile={isOpenMobile}
         setIsOpenMobile={setIsOpenMobile}
+        session={session}
+        onLogout={onLogout}
+        onChangePassword={() => setShowChangePw(true)}
       />
 
       {/* Main Content Area */}
@@ -145,6 +157,14 @@ export const Layout: React.FC = () => {
             </span>
           </div>
         </header>
+
+        {session.weak && (
+          <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 max-w-7xl flex items-center space-x-2 p-3 rounded-xl bg-amber-50 text-amber-800 text-sm">
+            <ShieldAlert className="w-5 h-5 shrink-0" />
+            <span>Bạn đang dùng mật khẩu mặc định. </span>
+            <button className="font-bold underline" onClick={() => setShowChangePw(true)}>Đổi mật khẩu</button>
+          </div>
+        )}
 
         {/* Dynamic Route View Scope */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 max-w-7xl w-full mx-auto">
@@ -199,6 +219,16 @@ export const Layout: React.FC = () => {
       </div>
 
       <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      {showChangePw && (
+        <ChangePasswordModal
+          onClose={() => setShowChangePw(false)}
+          onChanged={() => {
+            setShowChangePw(false);
+            onSessionChange({ ...session, weak: false, mustChoose: false });
+          }}
+        />
+      )}
     </div>
   );
 };

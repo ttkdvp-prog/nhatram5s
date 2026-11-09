@@ -1,4 +1,5 @@
 import { Station, SurveyRecord, Recommendation, DashboardKpi, OrgScoreSummary, BtsInspection } from '../types';
+import { authBody, notifyExpired } from './auth';
 import { INITIAL_KPIS, INITIAL_ORG_SCORES, INITIAL_STATIONS, INITIAL_RECORDS, INITIAL_RECOMMENDATIONS } from '../data/initialData';
 import { toLh3Url, parseSheetPhotoUrls, safeLocalStorageSet } from '../utils/imageHelper';
 
@@ -67,7 +68,7 @@ export const uploadImageToGoogleDrive = async (params: UploadImageParams): Promi
       const response = await fetch(scriptUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
+        body: authBody({
           action: 'uploadImage',
           data: params
         }),
@@ -108,11 +109,14 @@ export const fetchDashboardData = async () => {
 
   if (url) {
     try {
-      const response = await fetch(`${url}?action=getAll`, {
-        method: 'GET',
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: authBody({ action: 'getAll' }),
         redirect: 'follow'
       });
       const json = await response.json();
+      if (json.code === 'AUTH') notifyExpired();
       if (json.status === 'success' && json.data) {
         const rawRecords: SurveyRecord[] = Array.isArray(json.data.records) ? json.data.records : [];
         const recordsWithPhotos: SurveyRecord[] = rawRecords.map((r: any) => {
@@ -224,7 +228,7 @@ export const saveBtsInspectionPhotos = async (params: SaveBtsInspectionParams): 
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
+        body: authBody({
           action: 'saveBtsInspectionBatch',
           data: {
             id_nha_tram: params.id_nha_tram,
@@ -299,7 +303,7 @@ export const removeBtsInspectionPhoto = async (
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'removeBtsInspectionPhoto', data: { id_nha_tram: idNhaTram, url: photoUrl } }),
+        body: authBody({ action: 'removeBtsInspectionPhoto', data: { id_nha_tram: idNhaTram, url: photoUrl } }),
         redirect: 'follow'
       });
       const json = await response.json();
@@ -368,7 +372,7 @@ export const updateBtsExpiryStatus = async (params: UpdateBtsExpiryParams): Prom
       await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'updateBtsExpiryStatus', data: params }),
+        body: authBody({ action: 'updateBtsExpiryStatus', data: params }),
         redirect: 'follow'
       });
     } catch (err) {
@@ -506,7 +510,7 @@ export const saveSurveyForm = async (record: Partial<SurveyRecord>) => {
       const resp = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'saveSurvey', data: newRecord }),
+        body: authBody({ action: 'saveSurvey', data: newRecord }),
         redirect: 'follow'
       });
       const resJson = await resp.json();

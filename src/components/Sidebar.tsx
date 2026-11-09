@@ -1,5 +1,6 @@
 import React from 'react';
-import { LayoutDashboard, ClipboardCheck, FolderKanban, Camera, BarChart3, Radio, ShieldCheck, PieChart } from 'lucide-react';
+import { Session, ROLE_LABEL } from '../services/auth';
+import { LogOut, KeyRound, LayoutDashboard, ClipboardCheck, FolderKanban, Camera, BarChart3, Radio, ShieldCheck, PieChart } from 'lucide-react';
 
 export type ActiveTab = 'overview' | 'survey' | 'records' | 'photos' | 'reports' | 'btsInspection' | 'btsReport';
 
@@ -8,13 +9,19 @@ interface SidebarProps {
   setActiveTab: (tab: ActiveTab) => void;
   isOpenMobile: boolean;
   setIsOpenMobile: (open: boolean) => void;
+  session: Session;
+  onLogout: () => void;
+  onChangePassword: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   setActiveTab,
   isOpenMobile,
-  setIsOpenMobile
+  setIsOpenMobile,
+  session,
+  onLogout,
+  onChangePassword
 }) => {
   const menuItems = [
     { id: 'btsInspection' as ActiveTab, label: 'Công bố kiểm định BTS', icon: ShieldCheck },
@@ -82,8 +89,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Bottom User Profile Card matching Image 1 */}
         <div className="p-4 border-t border-white/10">
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/15">
-            <h4 className="font-bold text-sm text-white">Tổ Hạ tầng</h4>
-            <p className="text-xs text-sky-200 mt-0.5">Người cập nhật: <span className="font-semibold text-white">Nguyễn Văn A</span></p>
+            <h4 className="font-bold text-sm text-white">{session.user.to || 'Trung tâm Hạ tầng'}</h4>
+            <p className="text-xs text-sky-200 mt-0.5"><span className="font-semibold text-white">{session.user.ten}</span> · {ROLE_LABEL[session.user.role]}</p>
+            <div className="flex space-x-2 mt-3">
+              <button onClick={onChangePassword} className="flex-1 flex items-center justify-center space-x-1 py-1.5 rounded-lg bg-white/10 text-xs text-white hover:bg-white/20"><KeyRound className="w-3.5 h-3.5" /><span>Đổi mật khẩu</span></button>
+              <button onClick={onLogout} className="flex-1 flex items-center justify-center space-x-1 py-1.5 rounded-lg bg-white/10 text-xs text-white hover:bg-white/20"><LogOut className="w-3.5 h-3.5" /><span>Đăng xuất</span></button>
+            </div>
           </div>
         </div>
       </aside>
