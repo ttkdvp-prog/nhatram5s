@@ -111,6 +111,20 @@ function doPost(e) {
       auditLog_(authUser, '', AUDIT_ACTION_LABELS[action], action === 'resetPassword' ? 'Tài khoản: ' + String((postData.data || {}).username || '') : '', '', pr.status === 'success' ? 'Thành công' : 'Lỗi');
       return createJsonResponse(pr);
     }
+    if (action === 'getReminderRules') {
+      return createJsonResponse({ status: 'success', data: { rules: remGetRules_(), triggerOn: remTriggerOn_() } });
+    }
+    if (action === 'setReminderRule') return createJsonResponse(remSetRule_(authUser, postData.data));
+    if (action === 'setReminderTrigger') return createJsonResponse(remSetTrigger_(authUser, postData.data));
+    if (action === 'previewReminders') return createJsonResponse(remPreview_(authUser, postData.data));
+    if (action === 'sendReminders') {
+      var sr = remSend_(authUser, postData.data);
+      auditLog_(authUser, '', 'Gửi nhắc việc', String((postData.data || {}).id || '') + ((postData.data || {}).test ? ' (gửi thử)' : ''), '', sr.status === 'success' ? 'Thành công' : 'Lỗi');
+      return createJsonResponse(sr);
+    }
+    if (action === 'getReminderHistory') {
+      return createJsonResponse({ status: 'success', data: remHistory_(authUser, !!(postData.data || {}).mine) });
+    }
     if (action === 'getEvidenceHashes') {
       return createJsonResponse({ status: 'success', data: hashRead_() });
     }

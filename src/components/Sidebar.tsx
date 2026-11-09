@@ -1,8 +1,8 @@
 import React from 'react';
 import { Session, ROLE_LABEL } from '../services/auth';
-import { FileSearch, ScrollText, AlarmClock, CalendarClock, LogOut, KeyRound, LayoutDashboard, ClipboardCheck, FolderKanban, Camera, BarChart3, Radio, ShieldCheck, PieChart } from 'lucide-react';
+import { BellRing, FileSearch, ScrollText, AlarmClock, CalendarClock, LogOut, KeyRound, LayoutDashboard, ClipboardCheck, FolderKanban, Camera, BarChart3, Radio, ShieldCheck, PieChart } from 'lucide-react';
 
-export type ActiveTab = 'overview' | 'survey' | 'records' | 'photos' | 'reports' | 'btsInspection' | 'btsReport' | 'btsDue' | 'btsExpiry' | 'auditLog' | 'evidence';
+export type ActiveTab = 'overview' | 'survey' | 'records' | 'photos' | 'reports' | 'btsInspection' | 'btsReport' | 'btsDue' | 'btsExpiry' | 'auditLog' | 'evidence' | 'reminders';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -29,6 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'btsExpiry' as ActiveTab, label: 'Lịch hết hạn & cảnh báo', icon: AlarmClock, isNew: true },
     { id: 'auditLog' as ActiveTab, label: 'Nhật ký thao tác', icon: ScrollText, isNew: true },
     { id: 'evidence' as ActiveTab, label: 'Đối soát minh chứng', icon: FileSearch, isNew: true },
+    { id: 'reminders' as ActiveTab, label: 'Nhắc việc tự động', icon: BellRing, isNew: true },
     { id: 'btsReport' as ActiveTab, label: 'Báo cáo kiểm định', icon: PieChart },
     { id: 'survey' as ActiveTab, label: 'Triển khai 5S', icon: ClipboardCheck },
     { id: 'records' as ActiveTab, label: 'Hồ sơ nhà trạm', icon: FolderKanban },

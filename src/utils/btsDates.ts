@@ -3,8 +3,12 @@ import { Station } from '../types';
 // Backend trả ngày dạng dd/MM/yyyy
 export const parseVnDate = (s?: string): Date | null => {
   if (!s) return null;
-  const [day, month, year] = String(s).trim().split(/[\/\-]/).map(Number);
+  const p = String(s).trim().split(/[\/\-]/).map(Number);
+  let [day, month] = p;
+  const year = p[2];
   if (!day || !month || !year) return null;
+  // Nếu ô là chuỗi dạng M/d/yyyy (vd 9/19/2025) thì số thứ hai > 12 là ngày: đảo lại
+  if (month > 12 && day <= 12) [day, month] = [month, day];
   const d = new Date(year, month - 1, day);
   return isNaN(d.getTime()) ? null : d;
 };
