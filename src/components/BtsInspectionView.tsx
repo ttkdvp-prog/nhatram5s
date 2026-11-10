@@ -5,7 +5,6 @@ import {
   ChevronRight,
   User,
   Radio,
-  Camera,
   CheckCircle2,
   Circle,
   Loader2,
@@ -78,7 +77,6 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingStationRef = useRef<Station | null>(null);
 
@@ -117,10 +115,9 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
 
   const getInspection = (idNhaTram: string): BtsInspection | undefined => inspectionByStation.get(idNhaTram);
 
-  const handleOpenPicker = (station: Station, useCamera: boolean) => {
+  const handleOpenPicker = (station: Station) => {
     pendingStationRef.current = station;
-    const input = useCamera ? cameraInputRef.current : fileInputRef.current;
-    input?.click();
+    fileInputRef.current?.click();
   };
 
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -268,7 +265,6 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
 
   return (
     <div className="space-y-6">
-      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleFilesSelected} />
       <input ref={fileInputRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleFilesSelected} />
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
@@ -415,20 +411,11 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                                         <>
                                           <button
                                             type="button"
-                                            onClick={() => handleOpenPicker(station, true)}
-                                            className="flex items-center gap-1.5 text-[11px] font-bold text-white bg-vnpt-500 hover:bg-vnpt-600 active:scale-95 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
-                                            title="Chụp ảnh từ điện thoại"
-                                          >
-                                            <Camera className="w-3.5 h-3.5" />
-                                            Chụp ảnh
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleOpenPicker(station, false)}
+                                            onClick={() => handleOpenPicker(station)}
                                             className="text-[11px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 active:scale-95 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
-                                            title="Chọn ảnh hoặc file PDF từ máy tính"
+                                            title="Chọn ảnh hoặc file PDF có sẵn trên máy hoặc điện thoại"
                                           >
-                                            Chọn file
+                                            Gắn file
                                           </button>
                                         </>
                                       )}

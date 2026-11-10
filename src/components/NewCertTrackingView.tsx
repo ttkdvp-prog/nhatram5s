@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { ClipboardList, Download, CheckCircle2, AlertTriangle, FileText, Camera, ImagePlus, Loader2 } from 'lucide-react';
+import { ClipboardList, Download, CheckCircle2, AlertTriangle, FileText, ImagePlus, Loader2 } from 'lucide-react';
 import { Station, BtsInspection } from '../types';
 import { apiPost, logEvent } from '../services/auth';
 import { saveBtsInspectionPhotos, BtsUploadFile } from '../services/api';
@@ -43,7 +43,6 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingRef = useRef<Station | null>(null);
 
@@ -111,9 +110,9 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
     return Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0], 'vi'));
   }, [filtered]);
 
-  const openPicker = (s: Station, camera: boolean) => {
+  const openPicker = (s: Station) => {
     pendingRef.current = s;
-    (camera ? cameraRef.current : fileRef.current)?.click();
+    fileRef.current?.click();
   };
 
   const onFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,7 +205,6 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
 
   return (
     <div className="space-y-5">
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFiles} />
       <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={onFiles} />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -327,8 +325,7 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
                       <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
                     ) : (
                       <span className="flex gap-1">
-                        <button title="Chụp ảnh" onClick={() => openPicker(r.s, true)} className="p-1.5 rounded-lg bg-vnpt-600 text-white"><Camera className="w-4 h-4" /></button>
-                        <button title="Chọn ảnh từ máy" onClick={() => openPicker(r.s, false)} className="p-1.5 rounded-lg bg-slate-200 text-slate-700"><ImagePlus className="w-4 h-4" /></button>
+                        <button title="Gắn file ảnh/PDF có sẵn" onClick={() => openPicker(r.s)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-vnpt-600 text-white text-xs font-bold"><ImagePlus className="w-4 h-4" /> Gắn file</button>
                       </span>
                     )}
                   </td>
