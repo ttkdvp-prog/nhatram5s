@@ -25,14 +25,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const menuItems = [
     { id: 'btsInspection' as ActiveTab, label: 'Công bố kiểm định BTS', icon: ShieldCheck },
+    { id: 'certTracking' as ActiveTab, label: 'Theo dõi giấy mới', icon: ClipboardList, isNew: true },
+    { id: 'certUpload' as ActiveTab, label: 'Tải giấy kiểm định mới', icon: FileUp, isNew: true },
+    { id: 'btsReport' as ActiveTab, label: 'Báo cáo kiểm định', icon: PieChart },
     { id: 'btsDue' as ActiveTab, label: 'Đến hạn dán lại 2026', icon: CalendarClock, isNew: true },
     { id: 'btsExpiry' as ActiveTab, label: 'Lịch hết hạn & cảnh báo', icon: AlarmClock, isNew: true },
     { id: 'auditLog' as ActiveTab, label: 'Nhật ký thao tác', icon: ScrollText, isNew: true },
     { id: 'evidence' as ActiveTab, label: 'Đối soát minh chứng', icon: FileSearch, isNew: true },
     { id: 'reminders' as ActiveTab, label: 'Nhắc việc tự động', icon: BellRing, isNew: true },
-    { id: 'certUpload' as ActiveTab, label: 'Tải giấy kiểm định mới', icon: FileUp, isNew: true },
-    { id: 'certTracking' as ActiveTab, label: 'Theo dõi giấy mới', icon: ClipboardList, isNew: true },
-    { id: 'btsReport' as ActiveTab, label: 'Báo cáo kiểm định', icon: PieChart },
     { id: 'survey' as ActiveTab, label: 'Triển khai 5S', icon: ClipboardCheck },
     { id: 'records' as ActiveTab, label: 'Hồ sơ nhà trạm', icon: FolderKanban },
     { id: 'photos' as ActiveTab, label: 'Thống kê ảnh 5S', icon: Camera },
