@@ -142,28 +142,23 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
           Thống kê tiến độ dán niêm yết kiểm định theo từng Tổ Hạ tầng, từng nhân viên và xếp hạng người gắn file nhiều nhất.
         </p>
         <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 mt-3">
-          Chỉ tính các trạm đã có file giấy kiểm định/công bố (khớp với tab Công bố kiểm định BTS). Lưu ý: "Phải thực hiện" ở đây = tổng số trạm trừ số trạm đã dán, không phải chỉ tiêu dán lại trong năm. Chỉ tiêu
-          dán lại năm 2026 xem ở mục "Đến hạn dán lại 2026".
+          Chỉ tính các trạm đã có file giấy kiểm định/công bố (khớp với tab Công bố kiểm định BTS).
         </p>
       </div>
 
       {/* Tổng quan toàn Trung tâm */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80">
           <div className="text-2xl font-black text-slate-800">{grandTotal.total}</div>
-          <div className="text-xs font-semibold text-slate-500 mt-0.5">Tổng số trạm</div>
+          <div className="text-xs font-semibold text-slate-500 mt-0.5">Tổng số trạm phải dán</div>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-200/80">
           <div className="text-2xl font-black text-emerald-600">{grandTotal.done}</div>
-          <div className="text-xs font-semibold text-slate-500 mt-0.5">Đã dán niêm yết</div>
+          <div className="text-xs font-semibold text-slate-500 mt-0.5">Đã dán xong</div>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-amber-200/80">
           <div className="text-2xl font-black text-amber-600">{grandTotal.pending}</div>
-          <div className="text-xs font-semibold text-slate-500 mt-0.5">Phải thực hiện</div>
-        </div>
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-rose-200/80">
-          <div className="text-2xl font-black text-rose-600">{grandTotal.expired}</div>
-          <div className="text-xs font-semibold text-slate-500 mt-0.5">Trạm hết hạn</div>
+          <div className="text-xs font-semibold text-slate-500 mt-0.5">Chưa thực hiện</div>
         </div>
       </div>
 
@@ -180,11 +175,10 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
             <thead>
               <tr className="bg-slate-50 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wide">
                 <th className="px-4 py-2.5">Tổ Hạ tầng</th>
-                <th className="px-4 py-2.5 text-right">Tổng số trạm</th>
-                <th className="px-4 py-2.5 text-right">Phải thực hiện</th>
-                <th className="px-4 py-2.5 text-right">Đã dán</th>
-                <th className="px-4 py-2.5 text-right">Hết hạn</th>
-                <th className="px-4 py-2.5 text-right">Tỷ lệ</th>
+                <th className="px-4 py-2.5 text-right">Tổng số trạm phải dán</th>
+                <th className="px-4 py-2.5 text-right">Đã dán xong</th>
+                <th className="px-4 py-2.5 text-right">Chưa thực hiện</th>
+                <th className="px-4 py-2.5 text-right">Tỷ lệ thực hiện</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -196,9 +190,8 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
                 >
                   <td className="px-4 py-2.5 font-semibold text-slate-800">{o.orgName}</td>
                   <td className="px-4 py-2.5 text-right font-bold text-slate-700">{o.total}</td>
-                  <td className="px-4 py-2.5 text-right font-bold text-amber-600">{o.pending}</td>
                   <td className="px-4 py-2.5 text-right font-bold text-emerald-600">{o.done}</td>
-                  <td className="px-4 py-2.5 text-right font-bold text-rose-600">{o.expired || '-'}</td>
+                  <td className="px-4 py-2.5 text-right font-bold text-amber-600">{o.pending}</td>
                   <td className="px-4 py-2.5 text-right font-bold text-vnpt-700">{pct(o.done, o.total)}%</td>
                 </tr>
               ))}
@@ -207,9 +200,8 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
               <tr className="bg-slate-50 font-black text-slate-800">
                 <td className="px-4 py-2.5">Tổng cộng</td>
                 <td className="px-4 py-2.5 text-right">{grandTotal.total}</td>
-                <td className="px-4 py-2.5 text-right text-amber-600">{grandTotal.pending}</td>
                 <td className="px-4 py-2.5 text-right text-emerald-600">{grandTotal.done}</td>
-                <td className="px-4 py-2.5 text-right text-rose-600">{grandTotal.expired || '-'}</td>
+                <td className="px-4 py-2.5 text-right text-amber-600">{grandTotal.pending}</td>
                 <td className="px-4 py-2.5 text-right text-vnpt-700">{pct(grandTotal.done, grandTotal.total)}%</td>
               </tr>
             </tfoot>
@@ -239,12 +231,11 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
             <thead>
               <tr className="bg-slate-50 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wide">
                 <th className="px-4 py-2.5">Nhân viên</th>
-                <th className="px-4 py-2.5 text-right">Tổng trạm</th>
-                <th className="px-4 py-2.5 text-right">Đã dán</th>
-                <th className="px-4 py-2.5 text-right">Phải thực hiện</th>
-                <th className="px-4 py-2.5 text-right">Hết hạn</th>
+                <th className="px-4 py-2.5 text-right">Tổng số trạm phải dán</th>
+                <th className="px-4 py-2.5 text-right">Đã dán xong</th>
+                <th className="px-4 py-2.5 text-right">Chưa thực hiện</th>
                 <th className="px-4 py-2.5 text-right">Số file</th>
-                <th className="px-4 py-2.5 text-right">Tỷ lệ</th>
+                <th className="px-4 py-2.5 text-right">Tỷ lệ thực hiện</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -257,14 +248,13 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
                   <td className="px-4 py-2.5 text-right font-bold text-slate-700">{emp.total}</td>
                   <td className="px-4 py-2.5 text-right font-bold text-emerald-600">{emp.done}</td>
                   <td className="px-4 py-2.5 text-right font-bold text-amber-600">{emp.pending}</td>
-                  <td className="px-4 py-2.5 text-right font-bold text-rose-600">{emp.expired || '-'}</td>
                   <td className="px-4 py-2.5 text-right font-bold text-slate-600">{emp.filesCount}</td>
                   <td className="px-4 py-2.5 text-right font-bold text-vnpt-700">{pct(emp.done, emp.total)}%</td>
                 </tr>
               ))}
               {employeeStatsForActiveOrg.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400 font-semibold">
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400 font-semibold">
                     Không có dữ liệu nhân viên cho tổ này.
                   </td>
                 </tr>
