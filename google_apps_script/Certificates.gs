@@ -167,13 +167,14 @@ function certUpload_(user, data) {
   set['ngay_het_han_' + suffix] = end;
 
   var headers = st.headers.slice();
-  ['link_giay_pdf', 'so_anh_truoc', 'ngay_tai_giay'].forEach(function (h) {
+  ['link_giay_pdf', 'nguon_giay', 'so_anh_truoc', 'ngay_tai_giay'].forEach(function (h) {
     if (headers.indexOf(h) === -1) {
       st.sheet.getRange(1, headers.length + 1).setValue(h);
       headers.push(h);
     }
   });
   set['link_giay_pdf'] = url;
+  set['nguon_giay'] = 'upload';
   // Mốc ảnh niêm yết lúc tải giấy mới: chỉ ảnh thêm SAU mốc này mới tính là đã dán giấy mới
   set['so_anh_truoc'] = certPhotoCount_()[String(info.id_nha_tram)] || 0;
   set['ngay_tai_giay'] = new Date();
@@ -241,11 +242,12 @@ function certScanFolder_(user) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.STATIONS);
   var values = sheet.getDataRange().getValues();
   var headers = values[0].map(String);
-  ['link_giay_pdf', 'so_anh_truoc', 'ngay_tai_giay', 'GCN_kiem_dinh', 'GCN_cong_bo'].forEach(function (h) {
+  ['link_giay_pdf', 'nguon_giay', 'so_anh_truoc', 'ngay_tai_giay', 'GCN_kiem_dinh', 'GCN_cong_bo'].forEach(function (h) {
     if (headers.indexOf(h) === -1) { sheet.getRange(1, headers.length + 1).setValue(h); headers.push(h); }
   });
   var cMa = headers.indexOf('ma_nha_tram'), cId = headers.indexOf('id_nha_tram');
   var cLink = headers.indexOf('link_giay_pdf'), cBase = headers.indexOf('so_anh_truoc'), cAt = headers.indexOf('ngay_tai_giay');
+  var cSrc = headers.indexOf('nguon_giay');
   var rowByMa = {};
   for (var i = 1; i < values.length; i++) rowByMa[String(values[i][cMa]).trim().toUpperCase()] = i;
 
@@ -259,9 +261,12 @@ function certScanFolder_(user) {
     var url = 'https://drive.google.com/file/d/' + f.getId() + '/view?usp=sharing';
     var cur = String(values[idx][cLink] || '');
     if (cur.indexOf(f.getId()) !== -1) { skipped++; return; }
+    // Trạm đã có giấy do người dùng tải thủ công (nguon_giay trống hoặc 'upload') thì không ghi đè
+    if (cur && String(values[idx][cSrc] || '') !== 'quet') { skipped++; return; }
     try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
     var r = idx + 1;
     sheet.getRange(r, cLink + 1).setValue(url);
+    sheet.getRange(r + 0, cSrc + 1).setValue('quet');
     sheet.getRange(r, cAt + 1).setValue(new Date());
     var base = values[idx][cBase];
     if (base === '' || base === null || base === undefined) {

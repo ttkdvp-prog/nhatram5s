@@ -52,13 +52,15 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
     return m;
   }, [btsInspections]);
 
-  // Chỉ các trạm đã được tải giấy PDF lên app (có link_giay_pdf)
+  // Chỉ các trạm đã được tải giấy PDF lên app bằng thao tác thủ công
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
     stations.forEach(s => {
       const a = s as any;
       const pdf = String(a.link_giay_pdf || '').trim();
       if (!pdf) return;
+      // Chỉ trạm do người dùng tải thủ công; file do quét thư mục Drive (nguon_giay = 'quet') không hiện ở đây
+      if (String(a.nguon_giay || '') === 'quet') return;
       const baseRaw = a.so_anh_truoc;
       const hasBaseline = baseRaw !== undefined && baseRaw !== null && String(baseRaw).trim() !== '';
       const photos = inspMap.get(s.id_nha_tram)?.anh_niem_yet_list || [];
