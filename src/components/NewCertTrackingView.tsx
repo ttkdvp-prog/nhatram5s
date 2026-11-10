@@ -174,20 +174,6 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
     }
   };
 
-  const scanFolder = async () => {
-    setBusy(true);
-    setMsg('Đang quét thư mục Drive...');
-    try {
-      const j = await apiPost('certScanFolder', {});
-      setMsg(j.message || 'Quét thất bại');
-      if (j.status === 'success') onReload();
-    } catch (e) {
-      setMsg('Quét thư mục thất bại');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const exportXlsx = () => {
     const data = filtered.map((r, i) => ({
       STT: i + 1,
@@ -238,14 +224,6 @@ export const NewCertTrackingView: React.FC<Props> = ({ stations, btsInspections,
       </div>
 
       {msg && <div className="p-3 rounded-xl bg-sky-50 text-sky-800 text-sm">{msg}</div>}
-
-      {isAdmin && (
-        <div>
-          <button onClick={scanFolder} disabled={busy} className="px-3 py-1.5 rounded-lg bg-vnpt-600 text-white text-xs font-bold disabled:opacity-50">
-            {busy ? 'Đang xử lý...' : 'Quét thư mục Drive'}
-          </button>
-        </div>
-      )}
 
       {isAdmin && missingBaseline > 0 && (
         <div>

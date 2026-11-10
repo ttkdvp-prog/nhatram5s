@@ -15,6 +15,7 @@ import {
 import { Station, BtsInspection } from '../types';
 import { compressImageFile, readFileAsDataUrl } from '../utils/imageHelper';
 import { saveBtsInspectionPhotos, removeBtsInspectionPhoto, updateBtsExpiryStatus, BtsUploadFile } from '../services/api';
+import { apiPost } from '../services/auth';
 import { ImageLightbox, LightboxPhoto } from './ImageLightbox';
 
 const isPdfUrl = (url: string) => /\.pdf(\?|$)/i.test(url) || url.includes('drive.google.com/file') || url.startsWith('data:application/pdf');
@@ -60,6 +61,8 @@ interface BtsInspectionViewProps {
   stations: Station[];
   btsInspections: BtsInspection[];
   onUpdated: (updated: BtsInspection) => void;
+  isAdmin?: boolean;
+  onReload?: () => void;
 }
 
 interface EmployeeGroup {
@@ -68,7 +71,24 @@ interface EmployeeGroup {
   stations: Station[];
 }
 
-export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, btsInspections, onUpdated }) => {
+export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, btsInspections, onUpdated, isAdmin, onReload }) => {
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanMsg, setScanMsg] = useState('');
+
+  const scanFolder = async () => {
+    setScanBusy(true);
+    setScanMsg('Đang quét thư mục Drive...');
+    try {
+      const j = await apiPost('certScanFolder', {});
+      setScanMsg(j.message || 'Quét thất bại');
+      if (j.status === 'success') onReload?.();
+    } catch {
+      setScanMsg('Quét thư mục thất bại');
+    } finally {
+      setScanBusy(false);
+    }
+  };
+
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null);
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
   const [uploadingStationId, setUploadingStationId] = useState<string | null>(null);
@@ -278,6 +298,14 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
         <p className="text-sm text-slate-500 mt-1">
           Chọn Tổ Hạ tầng → nhân viên quản lý → chụp hoặc tải ảnh/file PDF giấy niêm yết kiểm định đã dán tại từng trạm BTS. Chỉ hiện các trạm đã có file giấy kiểm định/công bố.
         </p>
+        {isAdmin && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button onClick={scanFolder} disabled={scanBusy} className="px-3 py-1.5 rounded-lg bg-vnpt-600 text-white text-xs font-bold disabled:opacity-50">
+              {scanBusy ? 'Đang quét...' : 'Quét thư mục Drive'}
+            </button>
+            {scanMsg && <span className="text-xs text-slate-600">{scanMsg}</span>}
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">

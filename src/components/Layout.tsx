@@ -204,6 +204,8 @@ export const Layout: React.FC<LayoutProps> = ({ session, onSessionChange, onLogo
               stations={stations}
               btsInspections={btsInspections}
               onUpdated={handleBtsInspectionUpdated}
+              isAdmin={session.user.role === 'admin'}
+              onReload={() => loadData(true)}
             />
           )}
 
