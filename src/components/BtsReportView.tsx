@@ -132,6 +132,9 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
   }, [stations, inspectionByStation]);
 
   const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
+  // Dưới 20%: đỏ; dưới 50%: cam; từ 50% trở lên: xanh
+  const rateTone = (p: number) =>
+    p < 20 ? 'bg-rose-50 text-rose-700 border-rose-200' : p < 50 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
 
   return (
     <div className="space-y-6 pb-10 animate-in fade-in duration-300">
@@ -194,7 +197,11 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
                   <td className="px-4 py-2.5 text-right font-bold text-slate-700">{o.total}</td>
                   <td className="px-4 py-2.5 text-right font-bold text-emerald-600">{o.done}</td>
                   <td className="px-4 py-2.5 text-right font-bold text-amber-600">{o.pending}</td>
-                  <td className="px-4 py-2.5 text-right font-bold text-vnpt-700">{pct(o.done, o.total)}%</td>
+                  <td className="px-4 py-2.5 text-right">
+                    <span className={`inline-block min-w-[3.25rem] text-center px-2 py-0.5 rounded-full border font-black text-xs ${rateTone(pct(o.done, o.total))}`}>
+                      {pct(o.done, o.total)}%
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
