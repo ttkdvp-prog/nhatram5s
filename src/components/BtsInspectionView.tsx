@@ -456,7 +456,7 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                                   {(() => {
                                     const certUrl = String((station as any).link_giay_pdf || '').trim();
                                     if (!certUrl) return null;
-                                    const idm = certUrl.match(//d/([^/?#]+)/) || certUrl.match(/[?&]id=([^&#]+)/);
+                                    const idm = certUrl.match(/\/d\/([^/?#]+)/) || certUrl.match(/[?&]id=([^&#]+)/);
                                     const dlUrl = idm ? `https://drive.google.com/uc?export=download&id=${idm[1]}` : certUrl;
                                     return (
                                       <div className="flex flex-wrap items-center gap-2 pl-6.5 text-[11px]">
