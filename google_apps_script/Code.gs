@@ -126,6 +126,11 @@ function doPost(e) {
       if (cb.status === 'success') auditLog_(authUser, '', 'Chốt mốc ảnh giấy mới', cb.message, '', 'Thành công');
       return createJsonResponse(cb);
     }
+    if (action === 'certScanFolder') {
+      var sc = certScanFolder_(authUser);
+      if (sc.status === 'success') auditLog_(authUser, '', 'Quét thư mục giấy kiểm định', sc.message, '', 'Thành công');
+      return createJsonResponse(sc);
+    }
     if (action === 'getReminderRules') {
       return createJsonResponse({ status: 'success', data: { rules: remGetRules_(), triggerOn: remTriggerOn_() } });
     }

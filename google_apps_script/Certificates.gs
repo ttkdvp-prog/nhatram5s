@@ -189,3 +189,93 @@ function certUpload_(user, data) {
     data: { fileName: fileName, url: url, replaced: existing.length }
   };
 }
+
+/**
+ * =========================================================================
+ * QUÉT THƯ MỤC "File kiểm định công bố theo tổ hạ tầng" (gốc My Drive, gồm cả thư mục con)
+ * Tên file: <Mã CSHT>_<Tên CSHT>_<kiểm định|công bố>_<Số giấy>.pdf
+ *   VD: CSHT_HBH_00037_Tram Cao Phong_kiem dinh_123-2026.pdf
+ * Trạm có file mới → ghi link_giay_pdf (+ số giấy nếu trạm chưa có) để hiện ở tab Công bố kiểm định BTS.
+ * Chỉ xử lý file chưa được gắn (link khác) nên chạy lại nhiều lần vẫn an toàn.
+ * =========================================================================
+ */
+var CERT_SCAN_FOLDER_NAME = 'File kiểm định công bố theo tổ hạ tầng';
+
+function certParseFileName_(name) {
+  var base = String(name || '').replace(/\.[A-Za-z0-9]{2,5}$/, '');
+  var m = base.match(/^(CSHT_[A-Za-z0-9]{2,6}_\d{4,6})_(.+?)_(ki[eêể]m\s*[dđ][iị]nh|c[oôồ]ng\s*b[oố])_(.+)$/i);
+  if (!m) {
+    // Dò theo bản đã bỏ dấu để chấp nhận mọi kiểu gõ dấu
+    var plain = certStripDiacritics_(base);
+    m = plain.match(/^(CSHT_[A-Za-z0-9]{2,6}_\d{4,6})_(.+?)_(kiem\s*dinh|cong\s*bo)_(.+)$/i);
+    if (!m) return null;
+  }
+  var kind = certStripDiacritics_(m[3]).toLowerCase().replace(/\s+/g, '');
+  return {
+    ma: m[1].toUpperCase(),
+    ten: m[2],
+    loai: kind.indexOf('cong') === 0 ? 'cong_bo' : 'kiem_dinh',
+    so: String(m[4]).trim()
+  };
+}
+
+function certCollectFiles_(folder, out) {
+  var files = folder.getFiles();
+  while (files.hasNext()) {
+    var f = files.next();
+    if (!f.isTrashed() && /pdf$/i.test(f.getName())) out.push(f);
+  }
+  var subs = folder.getFolders();
+  while (subs.hasNext()) certCollectFiles_(subs.next(), out);
+}
+
+function certScanFolder_(user) {
+  if (user.role !== 'admin') return { status: 'error', code: 'FORBIDDEN', message: 'Chỉ admin được quét thư mục' };
+  var rootIt = DriveApp.getFoldersByName(CERT_SCAN_FOLDER_NAME);
+  if (!rootIt.hasNext()) return { status: 'error', message: 'Không thấy thư mục "' + CERT_SCAN_FOLDER_NAME + '" ở My Drive' };
+
+  var files = [];
+  while (rootIt.hasNext()) certCollectFiles_(rootIt.next(), files);
+  files.sort(function (a, b) { return a.getLastUpdated().getTime() - b.getLastUpdated().getTime(); });
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.STATIONS);
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0].map(String);
+  ['link_giay_pdf', 'so_anh_truoc', 'ngay_tai_giay', 'GCN_kiem_dinh', 'GCN_cong_bo'].forEach(function (h) {
+    if (headers.indexOf(h) === -1) { sheet.getRange(1, headers.length + 1).setValue(h); headers.push(h); }
+  });
+  var cMa = headers.indexOf('ma_nha_tram'), cId = headers.indexOf('id_nha_tram');
+  var cLink = headers.indexOf('link_giay_pdf'), cBase = headers.indexOf('so_anh_truoc'), cAt = headers.indexOf('ngay_tai_giay');
+  var rowByMa = {};
+  for (var i = 1; i < values.length; i++) rowByMa[String(values[i][cMa]).trim().toUpperCase()] = i;
+
+  var counts = certPhotoCount_();
+  var added = 0, skipped = 0, unmatched = [], badName = [];
+  files.forEach(function (f) {
+    var p = certParseFileName_(f.getName());
+    if (!p) { badName.push(f.getName()); return; }
+    var idx = rowByMa[p.ma];
+    if (idx === undefined) { unmatched.push(f.getName()); return; }
+    var url = 'https://drive.google.com/file/d/' + f.getId() + '/view?usp=sharing';
+    var cur = String(values[idx][cLink] || '');
+    if (cur.indexOf(f.getId()) !== -1) { skipped++; return; }
+    try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+    var r = idx + 1;
+    sheet.getRange(r, cLink + 1).setValue(url);
+    sheet.getRange(r, cAt + 1).setValue(new Date());
+    var base = values[idx][cBase];
+    if (base === '' || base === null || base === undefined) {
+      sheet.getRange(r, cBase + 1).setValue(counts[String(values[idx][cId])] || 0);
+    }
+    var cGcn = headers.indexOf('GCN_' + p.loai);
+    if (cGcn !== -1 && !String(values[idx][cGcn] || '').trim()) sheet.getRange(r, cGcn + 1).setValue(p.so);
+    values[idx][cLink] = url;
+    added++;
+  });
+  SpreadsheetApp.flush();
+  return {
+    status: 'success',
+    message: 'Quét ' + files.length + ' file: thêm mới ' + added + ' trạm, đã có ' + skipped + ', không khớp mã trạm ' + unmatched.length + ', sai tên ' + badName.length,
+    data: { added: added, skipped: skipped, unmatched: unmatched.slice(0, 20), badName: badName.slice(0, 20) }
+  };
+}
