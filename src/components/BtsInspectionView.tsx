@@ -80,9 +80,12 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingStationRef = useRef<Station | null>(null);
 
-  // Toàn bộ nhà trạm trong hệ thống đều là trạm viễn thông (BTS/MACRO/REMOTE_SECTOR...)
-  // nên áp dụng công bố kiểm định cho tất cả, không lọc riêng theo loai_nha_tram
-  const btsStations = stations;
+  // Chỉ hiện các trạm đã có file giấy kiểm định/công bố (link_giay_pdf) - trạm nào được bổ sung
+  // file mới thì tự xuất hiện thêm, tránh hiện toàn bộ ~1900 trạm gây rối.
+  const btsStations = useMemo(
+    () => stations.filter(s => String((s as any).link_giay_pdf || '').trim() !== ''),
+    [stations]
+  );
 
   const orgGroups = useMemo(() => {
     const map = new Map<string, Station[]>();
@@ -273,7 +276,7 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
           <span>Công bố kiểm định BTS</span>
         </h2>
         <p className="text-sm text-slate-500 mt-1">
-          Chọn Tổ Hạ tầng → nhân viên quản lý → chụp hoặc tải ảnh/file PDF giấy niêm yết kiểm định đã dán tại từng trạm BTS
+          Chọn Tổ Hạ tầng → nhân viên quản lý → chụp hoặc tải ảnh/file PDF giấy niêm yết kiểm định đã dán tại từng trạm BTS. Chỉ hiện các trạm đã có file giấy kiểm định/công bố.
         </p>
       </div>
 
