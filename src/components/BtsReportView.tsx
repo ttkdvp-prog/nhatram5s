@@ -50,7 +50,7 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
   const activeOrg = selectedOrg || orgGroups[0]?.[0] || '';
 
   const orgStats: OrgStat[] = useMemo(() => {
-    return orgGroups.map(([orgName, orgStations]) => {
+    const list = orgGroups.map(([orgName, orgStations]) => {
       let done = 0;
       let expired = 0;
       orgStations.forEach(s => {
@@ -66,6 +66,8 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
         expired
       };
     });
+    // Tỷ lệ thực hiện từ thấp đến cao
+    return list.sort((a, b) => (a.total ? a.done / a.total : 0) - (b.total ? b.done / b.total : 0) || a.orgName.localeCompare(b.orgName, 'vi'));
   }, [orgGroups, inspectionByStation]);
 
   const grandTotal = useMemo(() => {
@@ -96,7 +98,7 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
       if (insp?.han_kiem_dinh === 'Hết hạn') stat.expired++;
       stat.filesCount += insp?.anh_niem_yet_list?.length || 0;
     });
-    return Array.from(map.values()).sort((a, b) => b.done - a.done || b.filesCount - a.filesCount);
+    return Array.from(map.values()).sort((a, b) => (a.total ? a.done / a.total : 0) - (b.total ? b.done / b.total : 0) || a.name.localeCompare(b.name, 'vi'));
   }, [orgGroups, activeOrg, inspectionByStation]);
 
   const leaderboard = useMemo(() => {
