@@ -446,12 +446,30 @@ export const BtsInspectionView: React.FC<BtsInspectionViewProps> = ({ stations, 
                                             className="text-[11px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 active:scale-95 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
                                             title="Chọn ảnh hoặc file PDF có sẵn trên máy hoặc điện thoại"
                                           >
-                                            Gắn file
+                                            Gắn ảnh đã dán
                                           </button>
                                         </>
                                       )}
                                     </div>
                                   </div>
+
+                                  {(() => {
+                                    const certUrl = String((station as any).link_giay_pdf || '').trim();
+                                    if (!certUrl) return null;
+                                    const idm = certUrl.match(//d/([^/?#]+)/) || certUrl.match(/[?&]id=([^&#]+)/);
+                                    const dlUrl = idm ? `https://drive.google.com/uc?export=download&id=${idm[1]}` : certUrl;
+                                    return (
+                                      <div className="flex flex-wrap items-center gap-2 pl-6.5 text-[11px]">
+                                        <span className="font-bold text-slate-500">File để dán:</span>
+                                        <a href={certUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 px-2 py-1 rounded-lg">
+                                          <FileText className="w-3.5 h-3.5" /> Xem
+                                        </a>
+                                        <a href={dlUrl} className="font-bold text-vnpt-700 bg-vnpt-50 border border-vnpt-200 hover:bg-vnpt-100 px-2 py-1 rounded-lg">
+                                          Tải về
+                                        </a>
+                                      </div>
+                                    );
+                                  })()}
 
                                   {photos.length > 0 && (
                                     <div className="flex flex-wrap gap-3 pl-6.5">
