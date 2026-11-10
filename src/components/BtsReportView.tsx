@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart3, Building2, Trophy, CheckCircle2, FileImage } from 'lucide-react';
 import { Station, BtsInspection } from '../types';
-import { parseVnDate } from '../utils/btsDates';
 
 interface BtsReportViewProps {
   stations: Station[];
@@ -26,13 +25,8 @@ interface EmployeeStat {
   filesCount: number;
 }
 
-// Chỉ tính các trạm có ngày cấp kiểm định hoặc ngày cấp công bố từ 01/01/2026 (mới phải dán niêm yết)
-const REPORT_FROM = new Date(2026, 0, 1).getTime();
-const inReportScope = (s: Station) => {
-  const a = parseVnDate(s.ngay_cap_kiem_dinh);
-  const b = parseVnDate(s.ngay_cap_cong_bo);
-  return (!!a && a.getTime() >= REPORT_FROM) || (!!b && b.getTime() >= REPORT_FROM);
-};
+// Cùng phạm vi với tab Công bố kiểm định BTS: chỉ tính các trạm đã có file giấy kiểm định/công bố
+const inReportScope = (s: Station) => String((s as any).link_giay_pdf || '').trim() !== '';
 
 export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStations, btsInspections }) => {
   const stations = useMemo(() => allStations.filter(inReportScope), [allStations]);
@@ -148,7 +142,7 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
           Thống kê tiến độ dán niêm yết kiểm định theo từng Tổ Hạ tầng, từng nhân viên và xếp hạng người gắn file nhiều nhất.
         </p>
         <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 mt-3">
-          Chỉ tính các trạm có ngày cấp kiểm định hoặc ngày cấp công bố từ 01/01/2026. Lưu ý: "Phải thực hiện" ở đây = tổng số trạm trừ số trạm đã dán, không phải chỉ tiêu dán lại trong năm. Chỉ tiêu
+          Chỉ tính các trạm đã có file giấy kiểm định/công bố (khớp với tab Công bố kiểm định BTS). Lưu ý: "Phải thực hiện" ở đây = tổng số trạm trừ số trạm đã dán, không phải chỉ tiêu dán lại trong năm. Chỉ tiêu
           dán lại năm 2026 xem ở mục "Đến hạn dán lại 2026".
         </p>
       </div>
