@@ -26,8 +26,8 @@ interface EmployeeStat {
   filesCount: number;
 }
 
-// Chỉ tính các trạm có ngày cấp kiểm định hoặc ngày cấp công bố từ 01/02/2026 (mới phải dán niêm yết)
-const REPORT_FROM = new Date(2026, 1, 1).getTime();
+// Chỉ tính các trạm có ngày cấp kiểm định hoặc ngày cấp công bố từ 01/01/2026 (mới phải dán niêm yết)
+const REPORT_FROM = new Date(2026, 0, 1).getTime();
 const inReportScope = (s: Station) => {
   const a = parseVnDate(s.ngay_cap_kiem_dinh);
   const b = parseVnDate(s.ngay_cap_cong_bo);
@@ -148,7 +148,7 @@ export const BtsReportView: React.FC<BtsReportViewProps> = ({ stations: allStati
           Thống kê tiến độ dán niêm yết kiểm định theo từng Tổ Hạ tầng, từng nhân viên và xếp hạng người gắn file nhiều nhất.
         </p>
         <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 mt-3">
-          Chỉ tính các trạm có ngày cấp kiểm định hoặc ngày cấp công bố từ 01/02/2026. Lưu ý: "Phải thực hiện" ở đây = tổng số trạm trừ số trạm đã dán, không phải chỉ tiêu dán lại trong năm. Chỉ tiêu
+          Chỉ tính các trạm có ngày cấp kiểm định hoặc ngày cấp công bố từ 01/01/2026. Lưu ý: "Phải thực hiện" ở đây = tổng số trạm trừ số trạm đã dán, không phải chỉ tiêu dán lại trong năm. Chỉ tiêu
           dán lại năm 2026 xem ở mục "Đến hạn dán lại 2026".
         </p>
       </div>
